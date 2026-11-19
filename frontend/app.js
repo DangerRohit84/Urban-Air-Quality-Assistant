@@ -222,6 +222,28 @@ function fetchLiveAqi() {
   return loadAir();
 }
 
+function saveAirContext() {
+  var city = document.getElementById("city").value.trim();
+  var band = document.getElementById("aqi-band").value;
+  var season = document.getElementById("aqi-season").value;
+  if (!city) {
+    showError("Enter your city first.");
+    return Promise.resolve(null);
+  }
+  return apiFetch("/air/context", {
+    method: "POST",
+    body: { city: city, band: band, season: season },
+  })
+    .then(function () {
+      showStatus("Air-quality band saved.");
+      return loadPlans();
+    })
+    .catch(function (error) {
+      showError(error.message);
+      return null;
+    });
+}
+
 function formatNumber(value) {
   var numeric = Number(value);
   if (!isFinite(numeric)) {
@@ -417,12 +439,13 @@ function init() {
         }
       });
     });
-  document
-    .getElementById("air-panel")
-    .addEventListener("submit", function (event) {
-      event.preventDefault();
-    });
   document.getElementById("fetch-live").addEventListener("click", fetchLiveAqi);
+  document
+    .getElementById("aqi-band")
+    .addEventListener("change", saveAirContext);
+  document
+    .getElementById("aqi-season")
+    .addEventListener("change", saveAirContext);
   document.getElementById("ask-form").addEventListener("submit", askQuestion);
   document
     .getElementById("upload-form")
