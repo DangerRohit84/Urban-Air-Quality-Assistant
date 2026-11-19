@@ -1,0 +1,116 @@
+"""Application configuration parsed from environment variables."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _env_str(name: str, default: str) -> str:
+    """Read a string environment variable, falling back to ``default``.
+
+    Args:
+        name: The environment variable name.
+        default: The value used when the variable is unset or empty.
+
+    Returns:
+        The variable value or the default.
+    """
+    value = os.getenv(name)
+    return value if value else default
+
+
+def _env_int(name: str, default: int) -> int:
+    """Read an integer environment variable, falling back to ``default``.
+
+    Args:
+        name: The environment variable name.
+        default: The value used when the variable is unset or empty.
+
+    Returns:
+        The parsed integer or the default.
+    """
+    value = os.getenv(name)
+    if not value:
+        return default
+    return int(value)
+
+
+@dataclass
+class Settings:
+    """Runtime settings derived from the process environment."""
+
+    llm_provider: str = field(
+        default_factory=lambda: _env_str("LLM_PROVIDER", "local_synth")
+    )
+    gemini_api_key: str = field(default_factory=lambda: _env_str("GEMINI_API_KEY", ""))
+    gemini_model: str = field(
+        default_factory=lambda: _env_str("GEMINI_MODEL", "gemini-2.0-flash")
+    )
+    openai_api_key: str = field(default_factory=lambda: _env_str("OPENAI_API_KEY", ""))
+    openai_base_url: str = field(
+        default_factory=lambda: _env_str(
+            "OPENAI_BASE_URL", "https://api.openai.com/v1"
+        )
+    )
+    openai_model: str = field(
+        default_factory=lambda: _env_str("OPENAI_MODEL", "gpt-4o-mini")
+    )
+    aqi_api_key: str = field(default_factory=lambda: _env_str("AQI_API_KEY", ""))
+    store_backend: str = field(
+        default_factory=lambda: _env_str("STORE_BACKEND", "sqlite")
+    )
+    database_url: str = field(
+        default_factory=lambda: _env_str("DATABASE_URL", "sqlite:///./data/air.db")
+    )
+    auth_secret: str = field(default_factory=lambda: _env_str("AUTH_SECRET", ""))
+    frontend_origin: str = field(
+        default_factory=lambda: _env_str("FRONTEND_ORIGIN", "http://localhost:8000")
+    )
+    rate_limit_per_min: int = field(
+        default_factory=lambda: _env_int("RATE_LIMIT_PER_MIN", 200)
+    )
+    max_rate_buckets: int = field(
+        default_factory=lambda: _env_int("MAX_RATE_BUCKETS", 10000)
+    )
+    max_upload_bytes: int = field(
+        default_factory=lambda: _env_int("MAX_UPLOAD_BYTES", 10485760)
+    )
+    max_documents: int = field(default_factory=lambda: _env_int("MAX_DOCUMENTS", 10))
+    port: int = field(default_factory=lambda: _env_int("PORT", 8000))
+    log_level: str = field(default_factory=lambda: _env_str("LOG_LEVEL", "info"))
+
+    @property
+    def db_path(self) -> Path:
+        """Resolve the SQLite database path from ``database_url``.
+
+        Returns:
+            The filesystem path of the SQLite database.
+        """
+        url = self.database_url
+        for prefix in ("sqlite:///", "sqlite://"):
+            if url.startswith(prefix):
+                return Path(url[len(prefix) :])
+        return Path(url)
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Return the CORS allowlist, dropping wildcards and malformed entries.
+
+        Returns:
+            The validated origin strings.
+        """
+        raw = os.getenv("ALLOWED_ORIGINS", self.frontend_origin)
+        origins: list[str] = []
+        for item in raw.split(","):
+            candidate = item.strip()
+            if not candidate or candidate == "*":
+                continue
+            if not candidate.startswith(("http://", "https://")):
+                continue
+            origins.append(candidate)
+        return origins
+
+
+settings = Settings()
