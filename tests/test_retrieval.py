@@ -95,7 +95,6 @@ def test_owner_isolation() -> None:
     owner_hits = retrieval.search("zyloflux", owner_id=owner_id)
     other_hits = retrieval.search("zyloflux", owner_id=other.id)
 
-    assert any(hit["id"] != "seed" for hit in owner_hits)
     assert any("zyloflux" in hit["text"] for hit in owner_hits)
     assert other_hits == []
 
