@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Personalized low-emission routines, indoor air hacks, quantified impact and grounded air-quality answers.">
+  <title>Urban Air Quality Assistant</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header" role="banner">
+    <h1>Urban Air Quality Assistant</h1>
+    <p class="tagline">Personalized routines, indoor hacks and grounded answers for cleaner air.</p>
+  </header>
+
+  <main id="main" role="main" tabindex="-1">
+    <noscript><p class="noscript">This assistant needs JavaScript to run.</p></noscript>
+
+    <p id="status" role="status" aria-live="polite"></p>
+    <p id="errors" role="alert" aria-live="assertive" tabindex="-1"></p>
+
+    <section id="auth-card" aria-labelledby="auth-title">
+      <h2 id="auth-title">Sign in or register</h2>
+      <div class="auth-forms">
+        <form id="register-form" novalidate>
+          <h3>Register</h3>
+          <div class="field">
+            <label for="reg-email">Email</label>
+            <input id="reg-email" name="email" type="email" autocomplete="email" required aria-describedby="reg-email-hint">
+            <p id="reg-email-hint" class="hint">Enter a valid email address.</p>
+          </div>
+          <div class="field">
+            <label for="reg-password">Password</label>
+            <input id="reg-password" name="password" type="password" autocomplete="new-password" required aria-describedby="reg-password-hint">
+            <p id="reg-password-hint" class="hint">At least 8 characters with a letter and a digit.</p>
+          </div>
+          <button type="submit" aria-describedby="register-hint">Create account</button>
+          <p id="register-hint" class="hint">Registers and signs you in.</p>
+        </form>
+
+        <form id="login-form" novalidate>
+          <h3>Sign in</h3>
+          <div class="field">
+            <label for="login-email">Email</label>
+            <input id="login-email" name="email" type="email" autocomplete="email" required aria-describedby="login-email-hint">
+            <p id="login-email-hint" class="hint">The address you registered with.</p>
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required aria-describedby="login-password-hint">
+            <p id="login-password-hint" class="hint">Your account password.</p>
+          </div>
+          <button type="submit" aria-describedby="login-hint">Sign in</button>
+          <p id="login-hint" class="hint">Signs you into your profile.</p>
+        </form>
+      </div>
+    </section>
+
+    <section id="profile-section" aria-labelledby="profile-title" hidden>
+      <h2 id="profile-title">Your profile</h2>
+      <form id="profile-form" novalidate>
+        <div class="field">
+          <label for="city">City</label>
+          <input id="city" name="city" type="text" required aria-describedby="city-hint">
+          <p id="city-hint" class="hint">A major Indian city, for example Delhi.</p>
+        </div>
+        <div class="field">
+          <label for="climate_zone">Climate zone</label>
+          <select id="climate_zone" name="climate_zone" aria-describedby="climate-zone-hint">
+            <option value="north">North</option>
+            <option value="south">South</option>
+            <option value="east">East</option>
+            <option value="west">West</option>
+            <option value="central">Central</option>
+            <option value="hilly">Hilly</option>
+          </select>
+          <p id="climate-zone-hint" class="hint">Choose the zone that matches your city.</p>
+        </div>
+        <fieldset>
+          <legend>Household</legend>
+          <div class="field checkbox">
+            <input id="children" name="children" type="checkbox" aria-describedby="children-hint">
+            <label for="children">Children at home</label>
+            <p id="children-hint" class="hint">Anyone under 15 living with you.</p>
+          </div>
+          <div class="field checkbox">
+            <input id="elderly" name="elderly" type="checkbox" aria-describedby="elderly-hint">
+            <label for="elderly">Older adults at home</label>
+            <p id="elderly-hint" class="hint">Anyone over 60 living with you.</p>
+          </div>
+          <div class="field checkbox">
+            <input id="respiratory" name="respiratory" type="checkbox" aria-describedby="respiratory-hint">
+            <label for="respiratory">Respiratory conditions</label>
+            <p id="respiratory-hint" class="hint">Asthma, COPD or similar conditions.</p>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="commute_mode">Commute mode</label>
+          <select id="commute_mode" name="commute_mode" aria-describedby="commute-mode-hint">
+            <option value="walk">Walk</option>
+            <option value="cycle">Cycle</option>
+            <option value="two_wheeler">Two-wheeler</option>
+            <option value="car">Car</option>
+            <option value="bus">Bus</option>
+            <option value="metro">Metro</option>
+            <option value="train">Train</option>
+            <option value="work_from_home">Work from home</option>
+          </select>
+          <p id="commute-mode-hint" class="hint">Your usual way of getting around.</p>
+        </div>
+        <div class="field">
+          <label for="commute_km">One-way commute (km)</label>
+          <input id="commute_km" name="commute_km" type="number" min="0" max="200" step="0.5" value="0" aria-describedby="commute-km-hint">
+          <p id="commute-km-hint" class="hint">Up to 200 km each way.</p>
+        </div>
+        <div class="field">
+          <label for="cooking_fuel">Cooking fuel</label>
+          <select id="cooking_fuel" name="cooking_fuel" aria-describedby="cooking-fuel-hint">
+            <option value="lpg">LPG</option>
+            <option value="png">PNG</option>
+            <option value="electric">Electric</option>
+            <option value="biogas">Biogas</option>
+            <option value="wood">Wood</option>
+            <option value="kerosene">Kerosene</option>
+            <option value="coal">Coal</option>
+          </select>
+          <p id="cooking-fuel-hint" class="hint">The fuel you use most for cooking.</p>
+        </div>
+        <div class="field">
+          <label for="heating_type">Heating</label>
+          <select id="heating_type" name="heating_type" aria-describedby="heating-type-hint">
+            <option value="none">None</option>
+            <option value="electric_heater">Electric heater</option>
+            <option value="gas_heater">Gas heater</option>
+            <option value="blowers">Blowers</option>
+            <option value="solar">Solar</option>
+            <option value="wood_burner">Wood burner</option>
+          </select>
+          <p id="heating-type-hint" class="hint">Your main winter heating source.</p>
+        </div>
+        <div class="field">
+          <label for="budget_level">Budget sensitivity</label>
+          <select id="budget_level" name="budget_level" aria-describedby="budget-level-hint">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <p id="budget-level-hint" class="hint">How much cost matters when choosing.</p>
+        </div>
+        <button type="submit" aria-describedby="profile-save-hint">Save profile</button>
+        <p id="profile-save-hint" class="hint">Stores your profile and refreshes the plan.</p>
+      </form>
+    </section>
+
+    <section id="air-panel" aria-labelledby="air-title" hidden>
+      <h2 id="air-title">Air quality</h2>
+      <div class="field">
+        <label for="aqi-band">Current band</label>
+        <select id="aqi-band" aria-describedby="aqi-band-hint">
+          <option value="Good">Good</option>
+          <option value="Satisfactory">Satisfactory</option>
+          <option value="Moderately Polluted">Moderately Polluted</option>
+          <option value="Poor">Poor</option>
+          <option value="Very Poor">Very Poor</option>
+          <option value="Severe">Severe</option>
+        </select>
+        <p id="aqi-band-hint" class="hint">Pick the CPCB band for your city.</p>
+      </div>
+      <div class="field">
+        <label for="aqi-season">Season</label>
+        <select id="aqi-season" name="season" aria-describedby="aqi-season-hint">
+          <option value="winter">Winter</option>
+          <option value="summer">Summer</option>
+          <option value="monsoon">Monsoon</option>
+          <option value="post_monsoon">Post-monsoon</option>
+        </select>
+        <p id="aqi-season-hint" class="hint">Season changes heating and dispersion.</p>
+      </div>
+      <button id="fetch-live" type="button" aria-describedby="fetch-live-hint">Fetch live AQI</button>
+      <p id="fetch-live-hint" class="hint">Uses the live provider when a key is configured.</p>
+      <p id="aqi-readout" aria-live="polite">No reading yet.</p>
+    </section>
+
+    <section id="plans" aria-labelledby="plans-title" hidden>
+      <h2 id="plans-title">Your plan</h2>
+      <div class="plan-section">
+        <h3 id="routines-title">Routines</h3>
+        <div id="plans-routines" aria-live="polite" aria-labelledby="routines-title"></div>
+      </div>
+      <div class="plan-section">
+        <h3 id="hacks-title">Indoor hacks</h3>
+        <div id="plans-hacks" aria-live="polite" aria-labelledby="hacks-title"></div>
+      </div>
+      <div class="plan-section">
+        <h3 id="alternatives-title">Alternatives</h3>
+        <div id="plans-alternatives" aria-live="polite" aria-labelledby="alternatives-title"></div>
+      </div>
+    </section>
+
+    <section id="impact" aria-labelledby="impact-title" aria-live="polite" hidden>
+      <h2 id="impact-title">Impact</h2>
+      <p>Weekly CO2e reduction: <span id="impact-co2e">0</span> kg</p>
+      <p>Exposure reduction: <span id="impact-exposure">0</span>%</p>
+      <p>Monthly cost delta: <span id="impact-cost">0</span> INR</p>
+    </section>
+
+    <section id="ask" aria-labelledby="ask-title" hidden>
+      <h2 id="ask-title">Ask</h2>
+      <form id="ask-form" novalidate>
+        <div class="field">
+          <label for="q">Question</label>
+          <input id="q" name="q" type="text" required aria-describedby="q-hint">
+          <p id="q-hint" class="hint">Ask about air quality, routines or indoor hacks.</p>
+        </div>
+        <div class="field checkbox">
+          <input id="plain" name="plain" type="checkbox" aria-describedby="plain-hint">
+          <label for="plain">Plain language</label>
+          <p id="plain-hint" class="hint">Shorter answer, same sources.</p>
+        </div>
+        <button id="askBtn" type="submit" aria-describedby="ask-hint">Ask</button>
+        <p id="ask-hint" class="hint">Answers come from the cited corpus.</p>
+      </form>
+      <div id="answer" aria-live="polite" aria-labelledby="answer-title">
+        <h3 id="answer-title">Answer</h3>
+        <p id="answer-text"></p>
+      </div>
+      <p id="answerMode" aria-live="polite">Mode: standard</p>
+      <ul id="citations" aria-live="polite"></ul>
+    </section>
+
+    <section id="documents" aria-labelledby="docs-title" hidden>
+      <h2 id="docs-title">Document library</h2>
+      <ul id="docs-list" aria-live="polite"></ul>
+      <form id="upload-form" novalidate>
+        <div class="field">
+          <label for="docfile">PDF file</label>
+          <input id="docfile" name="file" type="file" accept="application/pdf" aria-describedby="docfile-hint">
+          <p id="docfile-hint" class="hint">PDF only, up to 10 MB.</p>
+        </div>
+        <button id="uploadBtn" type="submit" aria-describedby="upload-hint">Upload PDF</button>
+        <p id="upload-hint" class="hint">Adds the PDF to your searchable corpus.</p>
+      </form>
+      <p id="uploadStatus" role="status" aria-live="polite"></p>
+      <button id="exportBtn" type="button" aria-describedby="export-hint">Export plan (Markdown)</button>
+      <p id="export-hint" class="hint">Downloads your plan as Markdown.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <p>General information, not medical advice. Built for Prompt Wars.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
