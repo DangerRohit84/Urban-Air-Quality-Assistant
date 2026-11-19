@@ -1,0 +1,19 @@
+# Pinned runtime + quality-gate dependencies (exact versions).
+#
+# Runtime
+fastapi==0.159.1
+starlette==1.7.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+python-dotenv==1.2.4
+pypdf==6.21.2
+scikit-learn==1.5.2
+# Test client transport (Starlette TestClient)
+httpx==0.28.1
+
+# Testing + quality gates (scripts/check_quality.py)
+pytest==9.1.1
+pytest-cov==5.0.0
+ruff==0.6.7
+mypy==2.4.0
+pip-audit==2.10.1
