@@ -6,7 +6,7 @@ starlette==1.7.0
 uvicorn==0.54.0
 python-multipart==0.0.32
 python-dotenv==1.2.4
-pypdf==6.21.2
+pypdf==6.21.4
 scikit-learn==1.5.2
 # Test client transport (Starlette TestClient)
 httpx==0.28.1

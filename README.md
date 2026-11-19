@@ -151,3 +151,7 @@ smoke-test locally with:
 ```bash
 python scripts/smoke.py http://127.0.0.1:8000
 ```
+
+The smoke matrix passes 24/24 against a local `uvicorn` and against the local
+Docker container. The Render deploy URL is pending explicit user approval; no
+Render deployment was created by this work.

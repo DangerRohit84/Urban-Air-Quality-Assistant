@@ -1,0 +1,16 @@
+# Render Blueprint for the Urban Air Quality Assistant.
+#
+# Deploying is a manual step that requires explicit user approval; this file is
+# the declaration only.
+
+services:
+  - type: web
+    name: urban-air-quality-assistant
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: AQI_API_KEY
+        sync: false
