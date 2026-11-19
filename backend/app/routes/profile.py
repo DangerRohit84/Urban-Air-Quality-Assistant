@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app import access
 from backend.app.auth.dependencies import require_user_id
-from backend.app.schemas.profile import ProfileResponse
+from backend.app.profile import normalize_profile
+from backend.app.schemas.profile import ProfileResponse, ProfileUpdate
 from backend.app.storage.store import get_repo
 
 router = APIRouter(tags=["profile"])
@@ -33,3 +34,30 @@ def get_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="profile not found")
     return ProfileResponse(**profile.to_dict())
+
+
+@router.put("/profile", response_model=ProfileResponse)
+def update_profile(
+    payload: ProfileUpdate,
+    user_id: Annotated[str, Depends(require_user_id)],
+) -> ProfileResponse:
+    """Validate and store the caller's profile.
+
+    Args:
+        payload: The incoming profile fields.
+        user_id: The verified owner id.
+
+    Returns:
+        The stored profile.
+
+    Raises:
+        HTTPException: 422 when a field is out of range.
+    """
+    try:
+        profile = normalize_profile(
+            {**payload.model_dump(), "user_id": user_id}
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    saved = get_repo().save_profile(profile)
+    return ProfileResponse(**saved.to_dict())
