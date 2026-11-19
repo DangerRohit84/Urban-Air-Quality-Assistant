@@ -35,6 +35,9 @@ BACKEND_APP = ROOT / "backend" / "app"
 # the two stay in sync.
 DEFAULT_COVERAGE_FLOOR = 76.0
 
+# The plan's quality bar: at least 200 collected tests.
+MINIMUM_TEST_COUNT = 200
+
 _RESULTS: list[tuple[str, bool, str]] = []
 
 
@@ -107,6 +110,19 @@ def parse_total_coverage(output: str) -> float | None:
     return float(match.group(1)) if match else None
 
 
+def parse_test_count(output: str) -> int | None:
+    """Extract the passing test count from a pytest summary line.
+
+    Args:
+        output: The captured output of the pytest run.
+
+    Returns:
+        The number of passing tests, or None when no summary is present.
+    """
+    match = re.search(r"(\d+) passed", output)
+    return int(match.group(1)) if match else None
+
+
 def _has_backend_modules() -> bool:
     """Return True when ``backend/app`` holds a module coverage can measure.
 
@@ -146,6 +162,20 @@ def main() -> int:
     else:
         command = [sys.executable, "-m", "pytest", "-q"]
     _, coverage_output = run("tests", command)
+
+    test_count = parse_test_count(coverage_output)
+    count_ok = test_count is not None and test_count >= MINIMUM_TEST_COUNT
+    _RESULTS.append(
+        (
+            "test-count",
+            count_ok,
+            (
+                f"{test_count} tests >= {MINIMUM_TEST_COUNT}"
+                if test_count is not None
+                else "no pytest summary"
+            ),
+        )
+    )
 
     if _has_backend_modules():
         total = parse_total_coverage(coverage_output)
