@@ -59,6 +59,8 @@ def _reexpress(text: str) -> str:
 class LocalSynthProvider:
     """Compose deterministic, cited guidance from the prompt sources."""
 
+    name = "local_synth"
+
     def answer(self, prompt: str, *, plain_language: bool = False) -> str:
         """Compose an answer.
 

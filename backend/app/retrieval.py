@@ -8,7 +8,12 @@ from backend.app.retrieval_fallback import (
     _has_signal,
     _rank_by_token_overlap,
 )
-from backend.app.retrieval_index import _get_index, get_index_stats, reset_index
+from backend.app.retrieval_index import (
+    _get_index,
+    get_index_stats,
+    invalidate_index,
+    reset_index,
+)
 from backend.app.storage.store import get_repo
 
 MIN_TOP_K = 1
@@ -91,7 +96,7 @@ def search(
         documents = assemble_corpus(get_repo(), owner_id)
     if not documents:
         return []
-    vectorizer, matrix, records = _get_index(documents)
+    vectorizer, matrix, records = _get_index(documents, owner_id or "")
     if matrix is None:
         return []
     try:
@@ -123,6 +128,15 @@ def get_cache_stats() -> dict[str, int]:
     return get_index_stats()
 
 
+def invalidate_cache(owner_id: str) -> None:
+    """Invalidate only ``owner_id``'s retrieval cache entries.
+
+    Args:
+        owner_id: The owner whose documents changed.
+    """
+    invalidate_index(owner_id)
+
+
 def reset_cache() -> None:
-    """Reset the retrieval cache."""
+    """Reset the entire retrieval cache and statistics."""
     reset_index()

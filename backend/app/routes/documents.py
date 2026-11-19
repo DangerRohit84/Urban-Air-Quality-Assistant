@@ -11,9 +11,9 @@ from backend.app.auth.dependencies import require_user_id
 from backend.app.chunking import chunk_text
 from backend.app.config import settings
 from backend.app.models import Document
-from backend.app.retrieval import reset_cache
+from backend.app.retrieval import invalidate_cache
 from backend.app.schemas.documents import DocumentIn, DocumentResponse
-from backend.app.security import sanitize_text
+from backend.app.security import MAX_DOCUMENT_CHARS, sanitize_text
 from backend.app.storage.store import get_repo
 
 router = APIRouter(tags=["documents"])
@@ -22,7 +22,7 @@ router = APIRouter(tags=["documents"])
 def store_document(
     user_id: str, title: str, text: str, kind: str, source: str
 ) -> DocumentResponse:
-    """Persist a document and invalidate the retrieval cache.
+    """Persist a document and invalidate the owner's retrieval cache.
 
     Args:
         user_id: The verified owner id.
@@ -35,8 +35,14 @@ def store_document(
         The stored document response.
 
     Raises:
-        HTTPException: 409 when the document limit is reached.
+        HTTPException: 409 when the document limit is reached, 422 when the
+            text exceeds ``MAX_DOCUMENT_CHARS``.
     """
+    if len(text) > MAX_DOCUMENT_CHARS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"document text exceeds {MAX_DOCUMENT_CHARS} characters",
+        )
     repo = get_repo()
     if repo.count_documents(user_id) >= settings.max_documents:
         raise HTTPException(status_code=409, detail="document limit reached")
@@ -52,7 +58,7 @@ def store_document(
             created_at="",
         )
     )
-    reset_cache()
+    invalidate_cache(user_id)
     return DocumentResponse(**saved.to_dict())
 
 
@@ -117,5 +123,5 @@ def delete_document(
     repo = get_repo()
     access.get_owned_document(repo, doc_id, user_id)
     repo.delete_document(doc_id, user_id)
-    reset_cache()
+    invalidate_cache(user_id)
     return Response(status_code=204)

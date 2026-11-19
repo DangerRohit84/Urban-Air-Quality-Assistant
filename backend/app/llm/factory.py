@@ -44,3 +44,15 @@ def build_provider(provider: str | None = None) -> LLMProvider:
 
         return OpenAICompatProvider()
     return LocalSynthProvider()
+
+
+def provider_name(provider: str | None = None) -> str:
+    """Return the name of the provider ``build_provider`` selects.
+
+    Args:
+        provider: An optional explicit provider name.
+
+    Returns:
+        The resolved provider name, taken from the same factory the routes use.
+    """
+    return build_provider(provider).name

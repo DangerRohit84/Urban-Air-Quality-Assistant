@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import re
 
-_UNSAFE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f<>\"'&]")
+MAX_DOCUMENT_CHARS = 2000
+
+# Control characters only: the frontend writes through textContent, so quotes,
+# ampersands and angle brackets are data, not markup (R&D, M&M's survive).
+_UNSAFE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
-def sanitize_text(value: object, max_len: int = 2000) -> str:
+def sanitize_text(value: object, max_len: int = MAX_DOCUMENT_CHARS) -> str:
     """Strip control characters and truncate ``value``.
 
     Args:

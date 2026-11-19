@@ -52,6 +52,24 @@ def test_local_synth_is_the_default(monkeypatch: object) -> None:
     assert isinstance(build_provider(), LocalSynthProvider)
 
 
+def test_provider_name_reports_the_resolved_provider(monkeypatch: object) -> None:
+    """``provider_name`` mirrors what ``build_provider`` selects."""
+    from backend.app.llm.factory import provider_name
+
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    assert provider_name() == "local_synth"
+
+    monkeypatch.setattr(settings, "gemini_api_key", "key")
+    assert provider_name() == "gemini"
+
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+    monkeypatch.setattr(settings, "openai_api_key", "key")
+    assert provider_name() == "openai-compat"
+
+    assert provider_name("echo") == "echo"
+
+
 def test_local_synth_composes_new_text() -> None:
     """The composer re-expresses sources and cites them."""
     provider = LocalSynthProvider()

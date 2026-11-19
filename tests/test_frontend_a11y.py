@@ -153,6 +153,34 @@ def test_styles_document_contrast_targets_and_reduced_motion() -> None:
     assert "@media (prefers-reduced-motion: reduce)" in css
 
 
+def _css_block(css: str, selector: str) -> str:
+    """Return the declaration block for ``selector``.
+
+    Args:
+        css: The stylesheet text.
+        selector: The selector to locate.
+
+    Returns:
+        The declarations between the selector's braces.
+    """
+    start = css.index(selector + " {")
+    opening = css.index("{", start)
+    closing = css.index("}", opening)
+    return css[opening + 1 : closing]
+
+
+def test_checkbox_touch_target_is_a_44px_composite_label() -> None:
+    """The 24px checkbox rides on a 44px clickable label target."""
+    css = STYLES.read_text(encoding="utf-8")
+
+    input_block = _css_block(css, ".field.checkbox input")
+    label_block = _css_block(css, ".field.checkbox label")
+
+    assert "width: 24px" in input_block
+    assert "min-height: 44px" in label_block
+    assert "min-width: 44px" in label_block
+
+
 def test_app_js_is_text_content_only_and_exposes_helpers() -> None:
     """The script never parses HTML and exposes the scaffold helpers."""
     javascript = APP.read_text(encoding="utf-8")

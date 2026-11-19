@@ -122,6 +122,16 @@ def test_user_round_trip(repo: Repository) -> None:
     assert repo.get_user_by_id("nope") is None
 
 
+def test_duplicate_email_raises_value_error(repo: Repository) -> None:
+    """Both backends reject a second registration for the same email."""
+    repo.create_user("dupe@b.com", "hash")
+
+    with pytest.raises(ValueError, match="already registered"):
+        repo.create_user("dupe@b.com", "hash")
+
+    assert repo.count_users() == 1
+
+
 def test_profile_upsert_keeps_latest(repo: Repository) -> None:
     """Saving a profile twice leaves one row with the latest values."""
     user = repo.create_user("p@b.com", "hash")
@@ -230,6 +240,25 @@ def test_concurrent_writes_do_not_500(tmp_path: Path) -> None:
     assert final.city in {f"city{i}" for i in range(20)}
     assert repo.count_documents(user.id) == 20
     assert repo.count_documents(other.id) == 20
+
+
+def test_concurrent_duplicate_registers_admit_one_user(tmp_path: Path) -> None:
+    """A SQLite uniqueness race creates exactly one account."""
+    repo = SQLiteRepo(tmp_path / "dupe-race.db")
+
+    def register(_: int) -> str:
+        try:
+            repo.create_user("dupe-race@b.com", "hash")
+        except ValueError:
+            return "duplicate"
+        return "created"
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(register, range(8)))
+
+    assert results.count("created") == 1
+    assert results.count("duplicate") == 7
+    assert repo.count_users() == 1
 
 
 def test_build_repo_selects_backend(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

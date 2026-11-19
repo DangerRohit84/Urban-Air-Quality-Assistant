@@ -8,6 +8,8 @@ from backend.app.config import settings
 class OpenAICompatProvider:
     """Answer via an OpenAI-compatible chat endpoint."""
 
+    name = "openai-compat"
+
     def __init__(
         self,
         api_key: str | None = None,

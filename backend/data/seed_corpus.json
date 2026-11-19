@@ -1,0 +1,62 @@
+[
+  {
+    "id": "seed-001",
+    "title": "Indoor air purifiers and HEPA filtration",
+    "text": "An indoor air purifier with a HEPA filter removes fine particulate matter from a single room. Run it in the bedroom at night and keep doors closed for the best reduction in indoor PM2.5.",
+    "source": "CPCB indoor air guidance (approx.)"
+  },
+  {
+    "id": "seed-002",
+    "title": "Ventilation timing on high pollution days",
+    "text": "Open windows early in the morning or late at night when outdoor PM2.5 is lower. Avoid ventilating during traffic peaks and stubble-burning episodes.",
+    "source": "MoEFCC clean air guidance (approx.)"
+  },
+  {
+    "id": "seed-003",
+    "title": "Cooking emissions and kitchen exhaust",
+    "text": "Cooking with solid fuels such as wood, coal and kerosene releases smoke and fine particles. Use a kitchen exhaust fan, cover pans and prefer LPG, PNG, biogas or electric cooking.",
+    "source": "CPCB household fuel inventory (approx.)"
+  },
+  {
+    "id": "seed-004",
+    "title": "Low emission commuting choices",
+    "text": "Walking, cycling, metro and bus travel emit far less per passenger kilometre than a private car. Combining a short cycle ride with metro travel cuts weekly commute emissions substantially.",
+    "source": "MoEFCC transport emissions (approx.)"
+  },
+  {
+    "id": "seed-005",
+    "title": "Do not burn waste or dry leaves",
+    "text": "Open burning of garden waste, dry leaves and rubbish releases dioxins and thick smoke. Compost green waste instead and dispose of plastic through municipal collection.",
+    "source": "CPCB waste-burning advisory (approx.)"
+  },
+  {
+    "id": "seed-006",
+    "title": "Protecting children and the elderly",
+    "text": "Children and older adults breathe more air per body weight and are more vulnerable to PM2.5. Keep them indoors on Poor, Very Poor and Severe days and avoid school-run exposure during smog episodes.",
+    "source": "WHO air quality and health (approx.)"
+  },
+  {
+    "id": "seed-007",
+    "title": "Respiratory conditions and air quality",
+    "text": "People with asthma or COPD should follow their action plan, keep reliever medication nearby and reduce exertion outdoors when the AQI is above 200.",
+    "source": "GINA asthma guidance (approx.)"
+  },
+  {
+    "id": "seed-008",
+    "title": "Understanding CPCB AQI bands",
+    "text": "The CPCB AQI bands are Good (0-50), Satisfactory (51-100), Moderately Polluted (101-200), Poor (201-300), Very Poor (301-400) and Severe (401-500). Each band carries a different health advisory.",
+    "source": "CPCB AQI reporting (approx.)"
+  },
+  {
+    "id": "seed-009",
+    "title": "Indoor plants and air quality",
+    "text": "Houseplants improve comfort but remove particulate matter only in a small way. They are not a substitute for ventilation control, exhaust fans or a HEPA air purifier.",
+    "source": "Peer reviewed indoor air studies (approx.)"
+  },
+  {
+    "id": "seed-010",
+    "title": "Masks for smog and commute",
+    "text": "A well fitted N95 or N99 mask filters fine particles during travel on high pollution days. Cloth and surgical masks do not seal well enough to protect against PM2.5.",
+    "source": "WHO personal protective equipment (approx.)"
+  }
+]

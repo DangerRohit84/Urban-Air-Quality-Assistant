@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import retrieval
 from backend.app.config import settings
+from backend.app.security import MAX_DOCUMENT_CHARS
 
 
 def _pdf_bytes(text: str) -> bytes:
@@ -241,6 +242,36 @@ def test_document_limit_is_409(
     assert response.status_code == 409
 
 
+def test_oversize_document_text_is_422(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """Text beyond the character cap is rejected, never silently truncated."""
+    response = client.post(
+        "/documents",
+        headers=auth_headers,
+        json={"title": "Too long", "text": "x" * (MAX_DOCUMENT_CHARS + 1)},
+    )
+
+    assert response.status_code == 422
+
+
+def test_boundary_length_document_preserves_markup_characters(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A maximal document keeps ``&``, quotes and angle brackets intact."""
+    text = ("R&D M&M's <keep> \"quoted\" & more. " * 60)[:MAX_DOCUMENT_CHARS]
+    if text.endswith(" "):
+        text = text[:-1] + "."
+
+    assert len(text) == MAX_DOCUMENT_CHARS
+    response = client.post(
+        "/documents", headers=auth_headers, json={"title": "Boundary", "text": text}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["text"] == text
+
+
 def test_create_and_delete_invalidate_cache(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
@@ -256,6 +287,35 @@ def test_create_and_delete_invalidate_cache(
     client.delete(f"/documents/{doc_id}", headers=auth_headers)
 
     assert retrieval.search("zyloflux", owner_id=user_id) == []
+
+
+def test_document_change_invalidates_only_the_owner_cache(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """One owner's change drops only that owner's cached index."""
+    owner_id = client.get("/auth/me", headers=auth_headers).json()["id"]
+    other = _second_user(client, "cache-isolation@example.com")
+    other_id = client.get("/auth/me", headers=other).json()["id"]
+    query = "indoor air purifier"
+    retrieval.reset_cache()
+
+    retrieval.search(query, owner_id=owner_id)
+    retrieval.search(query, owner_id=other_id)
+    assert retrieval.get_cache_stats()["size"] == 2
+
+    hits_before = retrieval.get_cache_stats()["hits"]
+    misses_before = retrieval.get_cache_stats()["misses"]
+    client.post(
+        "/documents",
+        headers=auth_headers,
+        json={"title": "Owner note", "text": "zyloflux owner cache marker"},
+    )
+
+    assert retrieval.get_cache_stats()["size"] == 1
+    retrieval.search(query, owner_id=other_id)
+    assert retrieval.get_cache_stats()["hits"] == hits_before + 1
+    retrieval.search(query, owner_id=owner_id)
+    assert retrieval.get_cache_stats()["misses"] > misses_before
 
 
 def test_document_race_keeps_owner_isolation(client: TestClient) -> None:

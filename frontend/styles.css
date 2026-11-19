@@ -9,8 +9,9 @@
  *   Error text #b91c1c on #ffffff         =  6.47:1  (>= 4.5:1, AA)
  *   Success text #166534 on #ffffff       =  7.13:1  (>= 4.5:1, AA)
  *
- * Every interactive element is at least 44px by 44px, and motion is removed
- * for visitors who ask for reduced motion.
+ * Every interactive element has a target of at least 44px by 44px (checkbox
+ * inputs are 24px but their label forms a 44px composite target), and motion
+ * is removed for visitors who ask for reduced motion.
  */
 
 :root {
@@ -136,6 +137,10 @@ a:focus {
 
 .field.checkbox label {
   margin: 0;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .hint {

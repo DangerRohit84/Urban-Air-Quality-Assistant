@@ -118,7 +118,9 @@ def test_fallback_path_enforces_same_rule(monkeypatch: object) -> None:
         }
     ]
     monkeypatch.setattr(
-        retrieval, "_get_index", lambda _docs: (_BrokenVectorizer(), object(), records)
+        retrieval,
+        "_get_index",
+        lambda _docs, _owner="": (_BrokenVectorizer(), object(), records),
     )
 
     assert retrieval.search("What is the best pizza topping in Naples?") == []

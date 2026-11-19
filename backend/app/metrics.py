@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import time
 
-from backend.app.config import settings
+from backend.app.llm.factory import provider_name
 
 _STARTED = time.monotonic()
 
@@ -50,7 +50,7 @@ def health_snapshot() -> dict[str, object]:
         ``uptime_seconds`` keys.
     """
     return {
-        "provider": settings.llm_provider,
+        "provider": provider_name(),
         "cache": _cache_stats(),
         "store": _store_counts(),
         "uptime_seconds": round(time.monotonic() - _STARTED, 3),

@@ -3,8 +3,25 @@
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+def load_environment() -> None:
+    """Load a ``.env`` file into the process environment.
+
+    Existing environment variables always win over the file, so a real
+    environment (Render, Docker, CI) is never overridden by a checked-out
+    ``.env``. The search starts at this module's directory and walks up, so
+    the repository-root ``.env`` created by ``cp .env.example .env`` is found.
+
+    Returns:
+        Nothing; the process environment is updated in place.
+    """
+    load_dotenv()
 
 
 def _env_str(name: str, default: str) -> str:
@@ -34,7 +51,14 @@ def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
     if not value:
         return default
-    return int(value)
+    try:
+        return int(value)
+    except ValueError:
+        warnings.warn(
+            f"{name}={value!r} is not an integer; falling back to {default}",
+            stacklevel=2,
+        )
+        return default
 
 
 @dataclass
@@ -101,7 +125,7 @@ class Settings:
         Returns:
             The validated origin strings.
         """
-        raw = os.getenv("ALLOWED_ORIGINS", self.frontend_origin)
+        raw = _env_str("ALLOWED_ORIGINS", self.frontend_origin)
         origins: list[str] = []
         for item in raw.split(","):
             candidate = item.strip()
@@ -112,5 +136,7 @@ class Settings:
             origins.append(candidate)
         return origins
 
+
+load_environment()
 
 settings = Settings()

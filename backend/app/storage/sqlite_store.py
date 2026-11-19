@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import uuid
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -36,11 +37,7 @@ class SQLiteRepo(SQLiteBackend):
     """A SQLite implementation of the Repository protocol."""
 
     def __init__(self, db_path: Path) -> None:
-        """Open the database and apply migrations.
-
-        Args:
-            db_path: Path of the SQLite database file.
-        """
+        """Open the database and apply migrations."""
         super().__init__(db_path)
         self.ensure_schema()
 
@@ -50,12 +47,19 @@ class SQLiteRepo(SQLiteBackend):
             apply_migrations(self._conn)
 
     def create_user(self, email: str, password_hash: str) -> User:
-        """Insert a user and return it with a generated id."""
+        """Insert a user, rejecting a duplicate email.
+
+        Raises:
+            ValueError: When ``email`` is already registered.
+        """
         user = User(_new_id(), email, password_hash, _now())
-        self.run(
-            "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-            (user.id, user.email, user.password_hash, user.created_at),
-        )
+        try:
+            self.run(
+                "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                (user.id, user.email, user.password_hash, user.created_at),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("email already registered") from exc
         return user
 
     def get_user_by_email(self, email: str) -> User | None:

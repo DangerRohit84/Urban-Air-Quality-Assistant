@@ -8,7 +8,6 @@
  */
 
 var TOKEN_KEY = "uqa_token";
-var EMAIL_KEY = "uqa_email";
 
 function token() {
   return sessionStorage.getItem(TOKEN_KEY) || "";
@@ -60,14 +59,8 @@ function focusErrors() {
   document.getElementById("errors").focus();
 }
 
-function setSession(tokenValue, email) {
+function setSession(tokenValue) {
   sessionStorage.setItem(TOKEN_KEY, tokenValue);
-  sessionStorage.setItem(EMAIL_KEY, email);
-}
-
-function clearSession() {
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(EMAIL_KEY);
 }
 
 function showApp() {
@@ -106,7 +99,7 @@ function handleRegister(event) {
   };
   apiFetch("/auth/register", { method: "POST", body: payload })
     .then(function (data) {
-      setSession(data.token, payload.email);
+      setSession(data.token);
       showApp();
       showStatus("Welcome! Your account is ready.");
       loadProfile();
@@ -126,7 +119,7 @@ function handleLogin(event) {
   };
   apiFetch("/auth/login", { method: "POST", body: payload })
     .then(function (data) {
-      setSession(data.token, payload.email);
+      setSession(data.token);
       showApp();
       showStatus("Signed in.");
       loadProfile();

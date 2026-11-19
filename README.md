@@ -57,7 +57,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **251 tests** collected by `pytest --collect-only`; the quality
+Test suite: **268 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -97,7 +97,7 @@ Test modules under `tests/`:
   `test_prompting.py`, `test_llm_providers.py`, `test_ask.py`,
   `test_frontend_a11y.py`, `test_frontend_features.py`,
   `test_code_quality.py`, `test_docs_claims.py`, `test_efficiency.py`,
-  `test_quality_gates.py`.
+  `test_quality_gates.py`, `test_packaging.py`.
 
 ## Security
 
@@ -125,7 +125,8 @@ Test modules under `tests/`:
   `#errors` is focusable and receives focus on failure.
 - Skip link, banner/main/contentinfo landmarks and a `<noscript>` fallback.
 - Documented WCAG AA contrast (body 16.32:1, button 6.70:1), 44px touch
-  targets and a `prefers-reduced-motion` block.
+  targets (checkbox inputs ride on a 44px label target) and a
+  `prefers-reduced-motion` block.
 - DOM writes use `textContent`/`createElement` only.
 
 ## API

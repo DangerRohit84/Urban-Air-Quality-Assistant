@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi.testclient import TestClient
 
 from backend.app.auth.tokens import create_token
@@ -32,6 +34,20 @@ def test_duplicate_email_is_409(client: TestClient) -> None:
     response = client.post("/auth/register", json=payload)
 
     assert response.status_code == 409
+
+
+def test_concurrent_duplicate_registration_conflicts(client: TestClient) -> None:
+    """Parallel signups with one email yield one 201 and the rest 409."""
+    payload = {"email": "race@example.com", "password": "TestPass123"}
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        responses = list(
+            pool.map(lambda _: client.post("/auth/register", json=payload), range(8))
+        )
+
+    codes = sorted(response.status_code for response in responses)
+
+    assert codes == [201] + [409] * 7
 
 
 def test_weak_password_is_422(client: TestClient) -> None:

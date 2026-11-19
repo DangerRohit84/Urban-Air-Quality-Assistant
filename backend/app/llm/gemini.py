@@ -8,6 +8,8 @@ from backend.app.config import settings
 class GeminiProvider:
     """Answer with Google Gemini when a key is configured."""
 
+    name = "gemini"
+
     def __init__(
         self, api_key: str | None = None, model: str | None = None
     ) -> None:

@@ -36,14 +36,20 @@ class InMemoryRepo:
         """No-op: the in-memory store needs no schema."""
 
     def create_user(self, email: str, password_hash: str) -> User:
-        """Insert a user and return it with a generated id."""
-        user = User(
-            id=_new_id(),
-            email=email,
-            password_hash=password_hash,
-            created_at=_now(),
-        )
+        """Insert a user, rejecting a duplicate email.
+
+        Raises:
+            ValueError: When ``email`` is already registered.
+        """
         with self._lock:
+            if email in self._users_by_email:
+                raise ValueError("email already registered")
+            user = User(
+                id=_new_id(),
+                email=email,
+                password_hash=password_hash,
+                created_at=_now(),
+            )
             self._users[user.id] = user
             self._users_by_email[user.email] = user.id
         return user

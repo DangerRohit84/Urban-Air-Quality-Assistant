@@ -1,8 +1,8 @@
 # Secrets and local configuration
 .env
 
-# Runtime SQLite database
-data/
+# Runtime SQLite database (root only; backend/data/seed_corpus.json is tracked)
+/data/
 
 # Virtual environments
 .venv/

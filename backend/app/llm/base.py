@@ -8,6 +8,8 @@ from typing import Protocol
 class LLMProvider(Protocol):
     """Port for answer providers."""
 
+    name: str
+
     def answer(self, prompt: str, *, plain_language: bool = False) -> str:
         """Answer ``prompt``."""
         ...
@@ -15,6 +17,8 @@ class LLMProvider(Protocol):
 
 class EchoProvider:
     """Return the prompt unchanged; used only by tests."""
+
+    name = "echo"
 
     def answer(self, prompt: str, *, plain_language: bool = False) -> str:
         """Return ``prompt``.
