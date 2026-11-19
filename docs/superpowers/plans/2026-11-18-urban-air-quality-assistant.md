@@ -17,7 +17,7 @@
 - ruff and mypy clean.
 - Coverage gate >=76% (target 85%+); 200+ tests; docs-claims tests.
 - No new pip dependencies beyond the pinned set; stdlib for crypto (`hashlib`, `hmac`, `os.urandom`).
-- CPCB AQI bands: 0–50 Good, 51–100 Satisfactory, 101–200 Moderately Polluted, 201–300 Poor, 301–400 Very Poor, 401–500 Severe.
+- CPCB AQI bands: 0â€“50 Good, 51â€“100 Satisfactory, 101â€“200 Moderately Polluted, 201â€“300 Poor, 301â€“400 Very Poor, 401â€“500 Severe.
 - Owner-scoped data: profiles, AQI context, documents (`owner_id` on every row).
 - Provider precedence: Gemini -> OpenAI-compat -> local synthesis -> echo (echo is tests-only, never the default).
 - Offline-first live AQI: the user-entered band always works; live fetch only when `AQI_API_KEY` is set, with graceful fallback.
@@ -46,81 +46,81 @@ Every file to create, with its one-line responsibility. The split is locked so t
 
 ```
 backend/app/
-  __init__.py          — package marker.
-  config.py            — Settings dataclass: env parsing, db_path, allowed_origins.
-  errors.py            — install_error_handlers: ValueError -> 400/409, generic 500, HTTPException passthrough.
-  middleware.py        — security headers + sliding-window LRU rate limiter + Retry-After + X-Process-Time.
-  metrics.py           — provider name, cache stats, store counts, uptime for /health.
-  models.py            — User, Profile, Document, AqiContext dataclasses + serialization.
-  profile.py           — Profile defaults, enum validation, normalize_profile.
-  aqi.py               — CPCB band table, band_for_value, band_from_pm25, band_from_openweather_index.
-  cities.py            — major-Indian-city coordinates table + resolve_city.
-  factors.py           — impact Factor dataclass + FACTORS table (source-noted, approximate flags).
-  impact.py            — Impact dataclass + compute_impact / impact_for_recommendation / exposure_multiplier.
-  routines.py          — low-emission daily routine recommendations.
-  hacks.py             — indoor air-quality hacks.
-  alternatives.py      — sustainable alternatives to common activities.
-  plans.py             — Recommendation/PlansPayload types + build_plans orchestration + ranking.
-  prompting.py         — DISCLAIMER, CANNOT_DETERMINE, OUT_OF_DOMAIN, build_prompt.
-  chunking.py          — chunk_text with bounded overlap.
-  corpus.py            — load_seed_corpus + assemble_corpus (seed + owner docs only).
-  retrieval.py         — search() orchestration, top_k clamp, signal guard.
-  retrieval_index.py   — cached TF-IDF index (fit once per corpus, cache stats).
-  retrieval_fallback.py— zero-dependency stop-word + token-overlap ranker.
-  upload_guard.py      — PDF magic bytes, size cap, content-type allowlist.
-  security.py          — sanitize_text, sanitize_filename.
-  main.py              — create_app() composition root (<150 lines) + static frontend mount.
+  __init__.py          â€” package marker.
+  config.py            â€” Settings dataclass: env parsing, db_path, allowed_origins.
+  errors.py            â€” install_error_handlers: ValueError -> 400/409, generic 500, HTTPException passthrough.
+  middleware.py        â€” security headers + sliding-window LRU rate limiter + Retry-After + X-Process-Time.
+  metrics.py           â€” provider name, cache stats, store counts, uptime for /health.
+  models.py            â€” User, Profile, Document, AqiContext dataclasses + serialization.
+  profile.py           â€” Profile defaults, enum validation, normalize_profile.
+  aqi.py               â€” CPCB band table, band_for_value, band_from_pm25, band_from_openweather_index.
+  cities.py            â€” major-Indian-city coordinates table + resolve_city.
+  factors.py           â€” impact Factor dataclass + FACTORS table (source-noted, approximate flags).
+  impact.py            â€” Impact dataclass + compute_impact / impact_for_recommendation / exposure_multiplier.
+  routines.py          â€” low-emission daily routine recommendations.
+  hacks.py             â€” indoor air-quality hacks.
+  alternatives.py      â€” sustainable alternatives to common activities.
+  plans.py             â€” Recommendation/PlansPayload types + build_plans orchestration + ranking.
+  prompting.py         â€” DISCLAIMER, CANNOT_DETERMINE, OUT_OF_DOMAIN, build_prompt.
+  chunking.py          â€” chunk_text with bounded overlap.
+  corpus.py            â€” load_seed_corpus + assemble_corpus (seed + owner docs only).
+  retrieval.py         â€” search() orchestration, top_k clamp, signal guard.
+  retrieval_index.py   â€” cached TF-IDF index (fit once per corpus, cache stats).
+  retrieval_fallback.pyâ€” zero-dependency stop-word + token-overlap ranker.
+  upload_guard.py      â€” PDF magic bytes, size cap, content-type allowlist.
+  security.py          â€” sanitize_text, sanitize_filename.
+  main.py              â€” create_app() composition root (<150 lines) + static frontend mount.
   auth/
-    __init__.py        — package marker.
-    passwords.py       — PBKDF2 hash/verify, email/password validation, dummy_hash.
-    tokens.py          — HMAC-SHA256 sign/verify with exp, get_secret.
-    service.py         — register_user / authenticate with generic errors.
-    dependencies.py    — bearer_token, require_user_id, current_user, load_profile_or_default.
+    __init__.py        â€” package marker.
+    passwords.py       â€” PBKDF2 hash/verify, email/password validation, dummy_hash.
+    tokens.py          â€” HMAC-SHA256 sign/verify with exp, get_secret.
+    service.py         â€” register_user / authenticate with generic errors.
+    dependencies.py    â€” bearer_token, require_user_id, current_user, load_profile_or_default.
   llm/
-    __init__.py        — package marker.
-    base.py            — LLMProvider protocol + EchoProvider (tests only).
-    gemini.py          — GeminiProvider (lazy google-genai import).
-    openai_compat.py   — OpenAICompatProvider (lazy openai import).
-    local_synth.py     — LocalSynthProvider deterministic composer.
-    factory.py         — build_provider precedence.
+    __init__.py        â€” package marker.
+    base.py            â€” LLMProvider protocol + EchoProvider (tests only).
+    gemini.py          â€” GeminiProvider (lazy google-genai import).
+    openai_compat.py   â€” OpenAICompatProvider (lazy openai import).
+    local_synth.py     â€” LocalSynthProvider deterministic composer.
+    factory.py         â€” build_provider precedence.
   air/
-    __init__.py        — package marker.
-    provider.py        — LiveAqiProvider protocol + LiveAqiReading + City.
-    openweather.py     — OpenWeather Air Pollution adapter.
+    __init__.py        â€” package marker.
+    provider.py        â€” LiveAqiProvider protocol + LiveAqiReading + City.
+    openweather.py     â€” OpenWeather Air Pollution adapter.
   storage/
-    __init__.py        — re-exports.
-    protocol.py        — Repository Protocol.
-    schema.py          — SCHEMA_V1 DDL + table list.
-    migrations.py      — apply_migrations (PRAGMA user_version 0 -> 1).
-    sqlite_base.py     — connect() with WAL, foreign_keys, busy_timeout.
-    memory.py          — InMemoryRepo.
-    sqlite_store.py    — SQLiteRepo.
-    store.py           — build_repo / get_repo / reset_repo.
+    __init__.py        â€” re-exports.
+    protocol.py        â€” Repository Protocol.
+    schema.py          â€” SCHEMA_V1 DDL + table list.
+    migrations.py      â€” apply_migrations (PRAGMA user_version 0 -> 1).
+    sqlite_base.py     â€” connect() with WAL, foreign_keys, busy_timeout.
+    memory.py          â€” InMemoryRepo.
+    sqlite_store.py    â€” SQLiteRepo.
+    store.py           â€” build_repo / get_repo / reset_repo.
   routes/
-    __init__.py        — merge routers.
-    system.py          — GET /health.
-    auth.py            — POST /auth/register, POST /auth/login, GET /auth/me.
-    profile.py         — GET/PUT /profile.
-    air.py             — GET /air, POST /air/context.
-    plans.py           — GET /plans.
-    ask.py             — POST /ask.
-    documents.py       — POST/GET/DELETE /documents, POST /documents/upload.
-    export.py          — GET /export?format=md|json.
+    __init__.py        â€” merge routers.
+    system.py          â€” GET /health.
+    auth.py            â€” POST /auth/register, POST /auth/login, GET /auth/me.
+    profile.py         â€” GET/PUT /profile.
+    air.py             â€” GET /air, POST /air/context.
+    plans.py           â€” GET /plans.
+    ask.py             â€” POST /ask.
+    documents.py       â€” POST/GET/DELETE /documents, POST /documents/upload.
+    export.py          â€” GET /export?format=md|json.
   schemas/
-    __init__.py        — re-exports.
-    auth.py            — RegisterRequest, LoginRequest, TokenResponse.
-    profile.py         — ProfileResponse, ProfileUpdate.
-    air.py             — AirContextIn, AirContextResponse, AirLiveResponse.
-    documents.py       — DocumentIn, DocumentResponse.
-    ask.py             — AskIn, AskResponse.
-    plans.py           — RecommendationOut, PlansResponse.
-    health.py          — HealthResponse.
+    __init__.py        â€” re-exports.
+    auth.py            â€” RegisterRequest, LoginRequest, TokenResponse.
+    profile.py         â€” ProfileResponse, ProfileUpdate.
+    air.py             â€” AirContextIn, AirContextResponse, AirLiveResponse.
+    documents.py       â€” DocumentIn, DocumentResponse.
+    ask.py             â€” AskIn, AskResponse.
+    plans.py           â€” RecommendationOut, PlansResponse.
+    health.py          â€” HealthResponse.
 frontend/
-  index.html           — app shell: auth card, profile form, AQI panel, plan sections, impact panel, ask box, document library, live regions.
-  styles.css           — layout + documented WCAG AA contrast + 44px targets + prefers-reduced-motion.
-  app.js               — API client, rendering, event wiring (textContent-only).
+  index.html           â€” app shell: auth card, profile form, AQI panel, plan sections, impact panel, ask box, document library, live regions.
+  styles.css           â€” layout + documented WCAG AA contrast + 44px targets + prefers-reduced-motion.
+  app.js               â€” API client, rendering, event wiring (textContent-only).
 tests/
-  conftest.py          — env setup, repo reset, authed client fixture.
+  conftest.py          â€” env setup, repo reset, authed client fixture.
   test_scaffold.py, test_config.py, test_health.py, test_middleware.py, test_errors.py,
   test_storage.py, test_passwords.py, test_tokens.py, test_auth.py, test_boundaries.py,
   test_profile.py, test_aqi.py, test_air_api.py, test_impact.py, test_plans.py,
@@ -128,11 +128,11 @@ tests/
   test_ask.py, test_frontend_a11y.py, test_frontend_features.py, test_code_quality.py,
   test_docs_claims.py, test_quality_gates.py, test_efficiency.py, test_export.py, test_security.py.
 scripts/
-  check_quality.py     — ruff + mypy + pytest + coverage gate runner.
-  smoke.py             — live smoke matrix against a base URL.
+  check_quality.py     â€” ruff + mypy + pytest + coverage gate runner.
+  smoke.py             â€” live smoke matrix against a base URL.
 backend/data/
-  seed_corpus.json     — >=8 cited seed documents.
-data/                  — runtime SQLite (gitignored).
+  seed_corpus.json     â€” >=8 cited seed documents.
+data/                  â€” runtime SQLite (gitignored).
 docs/
   NARRATIVE.md, DEPLOYMENT.md, VIDEO_SCRIPT.md.
 pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.md, render.yaml.
@@ -140,9 +140,9 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 
 ## Tasks
 
-### Phase 0 — Foundation
+### Phase 0 â€” Foundation
 
-#### T1 — Project scaffold
+#### Task 1 â€” Project scaffold
 
 **Files:** `pyproject.toml`, `requirements.txt`, `.env.example`, `.gitignore`, `Dockerfile`, `scripts/check_quality.py`, `README.md` (skeleton), `backend/app/__init__.py`, `tests/__init__.py`.
 
@@ -159,7 +159,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `python -m pytest -q` -> pass; run `python scripts/check_quality.py` -> `QUALITY GATE PASSED`.
 - [ ] Commit: `git add -A; git commit -m "chore: scaffold Urban Air Quality Assistant"`.
 
-#### T2 — Config + app shell
+#### Task 2 â€” Config + app shell
 
 **Files:** `backend/app/config.py`, `backend/app/errors.py`, `backend/app/middleware.py`, `backend/app/metrics.py`, `backend/app/routes/system.py`, `backend/app/schemas/health.py`, `backend/app/main.py`, `tests/test_config.py`, `tests/test_health.py`, `tests/test_middleware.py`, `tests/test_errors.py`.
 
@@ -181,7 +181,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run the four test modules -> pass; run `python -m pytest -q` -> pass.
 - [ ] Commit: `feat: config, security middleware, health metrics, app shell`.
 
-#### T3 — Storage layer
+#### Task 3 â€” Storage layer
 
 **Files:** `backend/app/storage/__init__.py`, `protocol.py`, `schema.py`, `migrations.py`, `sqlite_base.py`, `memory.py`, `sqlite_store.py`, `store.py`, `tests/test_storage.py`.
 
@@ -220,15 +220,15 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `python -m pytest tests/test_storage.py -q` -> pass; run the full suite -> pass.
 - [ ] Commit: `feat: sqlite schema v1, repository protocol, memory + sqlite stores`.
 
-### Phase 1 — Auth
+### Phase 1 â€” Auth
 
-#### T4 — Passwords + tokens
+#### Task 4 â€” Passwords + tokens
 
 **Files:** `backend/app/auth/__init__.py`, `passwords.py`, `tokens.py`, `tests/test_passwords.py`, `tests/test_tokens.py`.
 
 **Interfaces:**
 - `passwords.normalize_email(email: str) -> str` (raises `ValueError("invalid email address")`).
-- `passwords.validate_password(password: str) -> None` (raises `ValueError`; 8–128 chars, >=1 letter, >=1 digit).
+- `passwords.validate_password(password: str) -> None` (raises `ValueError`; 8â€“128 chars, >=1 letter, >=1 digit).
 - `passwords.hash_password(password: str) -> str` -> `"<32 hex salt>$<64 hex digest>"`.
 - `passwords.verify_password(password: str, stored: str) -> bool` (constant-time; `False` on malformed stored).
 - `passwords.dummy_hash() -> str`.
@@ -244,7 +244,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run the two modules -> pass; full suite -> pass.
 - [ ] Commit: `feat: pbkdf2 password hashing and hmac bearer tokens`.
 
-#### T5 — Auth service + routes
+#### Task 5 â€” Auth service + routes
 
 **Files:** `backend/app/auth/service.py`, `dependencies.py`, `backend/app/routes/auth.py`, `backend/app/schemas/auth.py`, `tests/test_auth.py`, `tests/conftest.py`.
 
@@ -266,7 +266,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_auth.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: register/login/me with generic 401s and authed fixture`.
 
-#### T6 — Protect data endpoints + authed test fixture; 401/404 semantics
+#### Task 6 â€” Protect data endpoints + authed test fixture; 401/404 semantics
 
 **Files:** `backend/app/access.py`, `backend/app/routes/profile.py` (protected `GET /profile` -> 404 when absent), `backend/app/schemas/profile.py` (response type), `tests/test_boundaries.py`.
 
@@ -283,16 +283,16 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_boundaries.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: ownership helper and protected profile read with 404 semantics`.
 
-### Phase 2 — Domain + GenAI
+### Phase 2 â€” Domain + GenAI
 
-#### T7 — Profile
+#### Task 7 â€” Profile
 
 **Files:** `backend/app/models.py` (Profile), `backend/app/profile.py`, `backend/app/schemas/profile.py` (add `ProfileUpdate`), `backend/app/routes/profile.py` (add PUT), `tests/test_profile.py`.
 
 **Interfaces:**
 - `models.Profile` dataclass: `user_id: str`, `city: str`, `climate_zone: str`, `children: bool`, `elderly: bool`, `respiratory: bool`, `commute_mode: str`, `commute_km: float`, `cooking_fuel: str`, `heating_type: str`, `budget_level: str`, `updated_at: str`.
 - `profile.DEFAULT_PROFILE: Profile` (city `""`, `climate_zone="north"`, flags `False`, `commute_mode="bus"`, `commute_km=0.0`, `cooking_fuel="lpg"`, `heating_type="none"`, `budget_level="medium"`).
-- `profile.normalize_profile(data: dict) -> Profile` (raises `ValueError`); enums: `climate_zone in {"north","south","east","west","central","hilly"}`, `commute_mode in {"walk","cycle","two_wheeler","car","bus","metro","train","work_from_home"}`, `cooking_fuel in {"lpg","png","electric","biogas","wood","kerosene","coal"}`, `heating_type in {"none","electric_heater","gas_heater","blowers","solar","wood_burner"}`, `budget_level in {"low","medium","high"}`; `city` 1–80 chars; `commute_km` 0–200.
+- `profile.normalize_profile(data: dict) -> Profile` (raises `ValueError`); enums: `climate_zone in {"north","south","east","west","central","hilly"}`, `commute_mode in {"walk","cycle","two_wheeler","car","bus","metro","train","work_from_home"}`, `cooking_fuel in {"lpg","png","electric","biogas","wood","kerosene","coal"}`, `heating_type in {"none","electric_heater","gas_heater","blowers","solar","wood_burner"}`, `budget_level in {"low","medium","high"}`; `city` 1â€“80 chars; `commute_km` 0â€“200.
 - `dependencies.load_profile_or_default(repo: Repository, user_id: str) -> Profile`.
 - `PUT /profile` body `ProfileUpdate` -> `200 ProfileResponse`; `GET /profile` -> `200` or `404`.
 
@@ -303,7 +303,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_profile.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: profile model, validation, GET/PUT /profile with owner scope`.
 
-#### T8 — AQI
+#### Task 8 â€” AQI
 
 **Files:** `backend/app/aqi.py`, `cities.py`, `models.py` (AqiContext), `air/__init__.py`, `air/provider.py`, `air/openweather.py`, `schemas/air.py`, `routes/air.py`, `tests/test_aqi.py`, `tests/test_air_api.py`.
 
@@ -311,7 +311,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - `aqi.Band` dataclass: `name: str`, `low: int`, `high: int`, `color: str`, `advice: str`.
 - `aqi.CPCB_BANDS: tuple[Band, ...]` in order: Good(0,50), Satisfactory(51,100), Moderately Polluted(101,200), Poor(201,300), Very Poor(301,400), Severe(401,500).
 - `aqi.band_for_value(value: int) -> Band` (clamps >500 to Severe, <0 to Good).
-- `aqi.band_from_pm25(pm25: float) -> Band` (CPCB 24-h PM2.5 breakpoints: 0–30 Good, 31–60 Satisfactory, 61–90 Moderately Polluted, 91–120 Poor, 121–250 Very Poor, >250 Severe).
+- `aqi.band_from_pm25(pm25: float) -> Band` (CPCB 24-h PM2.5 breakpoints: 0â€“30 Good, 31â€“60 Satisfactory, 61â€“90 Moderately Polluted, 91â€“120 Poor, 121â€“250 Very Poor, >250 Severe).
 - `aqi.band_from_openweather_index(index: int) -> Band` (1->Good, 2->Satisfactory, 3->Moderately Polluted, 4->Poor, 5->Very Poor; out-of-range -> `ValueError`).
 - `cities.resolve_city(name: str) -> City | None`; `City` dataclass `name: str, lat: float, lon: float`; table includes at least Delhi, Mumbai, Bengaluru, Chennai, Kolkata, Hyderabad, Pune, Ahmedabad, Jaipur, Lucknow, Chandigarh, Patna, Bhopal, Indore, Guwahati, Srinagar, Shimla, Kochi, Thiruvananthapuram, Bhubaneswar.
 - `air.provider.LiveAqiProvider` Protocol: `fetch(city: City) -> LiveAqiReading`.
@@ -329,7 +329,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run the two modules -> pass; full suite -> pass.
 - [ ] Commit: `feat: CPCB bands, city table, live AQI provider with offline fallback`.
 
-#### T9 — Impact engine
+#### Task 9 â€” Impact engine
 
 **Files:** `backend/app/factors.py`, `backend/app/impact.py`, `tests/test_impact.py`.
 
@@ -337,7 +337,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - `factors.Factor` dataclass: `key: str`, `category: str`, `co2e_per_week_kg: float`, `exposure_reduction_pct: float`, `cost_delta_inr_month: float`, `source: str`, `approximate: bool`.
 - `factors.FACTORS: dict[str, Factor]` with at least `commute.walk`, `commute.cycle`, `commute.two_wheeler`, `commute.car`, `commute.bus`, `commute.metro`, `commute.train`, `commute.work_from_home`, `cooking.lpg`, `cooking.png`, `cooking.electric`, `cooking.biogas`, `cooking.wood`, `cooking.kerosene`, `cooking.coal`, `heating.none`, `heating.electric_heater`, `heating.gas_heater`, `heating.blowers`, `heating.solar`, `heating.wood_burner`, `waste.burn`, `waste.compost`.
 - `impact.Impact` dataclass: `co2e_kg_week: float`, `exposure_reduction_pct: float`, `cost_delta_inr_month: float`.
-- `impact.compute_impact(profile: Profile, action_key: str, baseline_key: str, context: AqiContext | None = None) -> Impact` (delta = action factor − baseline factor; raises `ValueError` on unknown key).
+- `impact.compute_impact(profile: Profile, action_key: str, baseline_key: str, context: AqiContext | None = None) -> Impact` (delta = action factor âˆ’ baseline factor; raises `ValueError` on unknown key).
 - `impact.impact_for_recommendation(profile: Profile, recommendation: Recommendation, context: AqiContext | None) -> Impact`.
 - `impact.exposure_multiplier(context: AqiContext | None) -> float` (Good 0.5, Satisfactory 0.75, Moderately Polluted 1.0, Poor 1.25, Very Poor 1.5, Severe 2.0; default 1.0).
 
@@ -348,7 +348,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_impact.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: cited impact factor table and exact impact arithmetic`.
 
-#### T10 — Plans engine
+#### Task 10 â€” Plans engine
 
 **Files:** `backend/app/plans.py`, `routines.py`, `hacks.py`, `alternatives.py`, `schemas/plans.py`, `routes/plans.py`, `routes/export.py`, `tests/test_plans.py`, `tests/test_export.py`.
 
@@ -371,7 +371,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_plans.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: personalized routines, hacks, alternatives with ranking`.
 
-#### T11 — Retrieval
+#### Task 11 â€” Retrieval
 
 **Files:** `backend/app/chunking.py`, `corpus.py`, `retrieval.py`, `retrieval_index.py`, `retrieval_fallback.py`, `backend/data/seed_corpus.json`, `tests/test_retrieval.py`.
 
@@ -393,7 +393,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_retrieval.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: TF-IDF retrieval with zero-dep fallback and per-owner cache`.
 
-#### T12 — Documents API
+#### Task 12 â€” Documents API
 
 **Files:** `backend/app/upload_guard.py`, `security.py`, `schemas/documents.py`, `routes/documents.py`, `tests/test_documents_api.py`.
 
@@ -415,7 +415,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_documents_api.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: owner-scoped document API with PDF upload and re-index`.
 
-#### T13 — Prompting + LLM
+#### Task 13 â€” Prompting + LLM
 
 **Files:** `backend/app/prompting.py`, `llm/__init__.py`, `base.py`, `gemini.py`, `openai_compat.py`, `local_synth.py`, `factory.py`, `schemas/ask.py`, `routes/ask.py`, `tests/test_prompting.py`, `tests/test_llm_providers.py`, `tests/test_ask.py`.
 
@@ -437,9 +437,9 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run the three modules -> pass; full suite -> pass.
 - [ ] Commit: `feat: grounded prompting, provider precedence, /ask with citations and refusal`.
 
-### Phase 3 — Frontend + Ship
+### Phase 3 â€” Frontend + Ship
 
-#### T14 — Frontend shell
+#### Task 14 â€” Frontend shell
 
 **Files:** `frontend/index.html`, `frontend/styles.css`, `frontend/app.js` (scaffold), `tests/test_frontend_a11y.py`.
 
@@ -454,7 +454,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_frontend_a11y.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: accessible frontend shell with auth card and profile form`.
 
-#### T15 — Frontend features
+#### Task 15 â€” Frontend features
 
 **Files:** `frontend/app.js` (wiring), `frontend/index.html` (feature markup), `frontend/styles.css`, `tests/test_frontend_features.py`.
 
@@ -469,7 +469,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `tests/test_frontend_features.py` and `tests/test_frontend_a11y.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: AQI panel, plan sections, impact panel, ask box, document library wiring`.
 
-#### T16 — Quality gates
+#### Task 16 â€” Quality gates
 
 **Files:** `tests/test_code_quality.py`, `tests/test_docs_claims.py`, `tests/test_quality_gates.py`, `scripts/check_quality.py` (extend), `tests/test_efficiency.py`.
 
@@ -489,7 +489,7 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 - [ ] Run `python scripts/check_quality.py` -> `QUALITY GATE PASSED`; run the full suite -> pass with zero warnings.
 - [ ] Commit: `test: SRP <150, docs-claims, efficiency and coverage gates`.
 
-#### T17 — Docs
+#### Task 17 â€” Docs
 
 **Files:** `README.md`, `docs/NARRATIVE.md`, `docs/DEPLOYMENT.md`, `docs/VIDEO_SCRIPT.md`.
 
@@ -497,11 +497,11 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 
 **Steps:**
 - [ ] Write `README.md`: architecture (layered, provider protocols), project layout listing every `backend/app` module and `tests/test_*.py`, security (PBKDF2 120k/16-byte salt, HMAC tokens, generic 401s, 404 on cross-user), efficiency (`/health` metrics, cached TF-IDF, bounded reads, LRU rate limit, `asyncio.to_thread`), accessibility (labels, aria-live, 44px, reduced motion, textContent-only), a `Performance and resource bounds` section with measured claims from `tests/test_efficiency.py` (health p50/p95, search latency, cache hit rate, upload cap, rate limit), the exact test count and `TOTAL >= 76%`, and deploy.
-- [ ] Write `docs/NARRATIVE.md` (problem, why better than general AI, trust design, Gen AI usage, changes description, what to link), `docs/DEPLOYMENT.md` (Render steps, every env var read by `config.py` in a table, prod hardening), and `docs/VIDEO_SCRIPT.md` (2–3 min walkthrough + sample ask queries).
+- [ ] Write `docs/NARRATIVE.md` (problem, why better than general AI, trust design, Gen AI usage, changes description, what to link), `docs/DEPLOYMENT.md` (Render steps, every env var read by `config.py` in a table, prod hardening), and `docs/VIDEO_SCRIPT.md` (2â€“3 min walkthrough + sample ask queries).
 - [ ] Run `python -m pytest tests/test_docs_claims.py -q` -> pass; run `python scripts/check_quality.py` -> PASS.
 - [ ] Commit: `docs: README, narrative, deployment guide, video script`.
 
-#### T18 — Deploy + verify
+#### Task 18 â€” Deploy + verify
 
 **Files:** `render.yaml`, `scripts/smoke.py`, `docs/DEPLOYMENT.md` (Render section), `README.md` (deploy URL).
 
