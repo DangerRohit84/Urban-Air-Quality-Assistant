@@ -350,10 +350,10 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 
 #### T10 — Plans engine
 
-**Files:** `backend/app/plans.py`, `routines.py`, `hacks.py`, `alternatives.py`, `schemas/plans.py`, `routes/plans.py`, `tests/test_plans.py`.
+**Files:** `backend/app/plans.py`, `routines.py`, `hacks.py`, `alternatives.py`, `schemas/plans.py`, `routes/plans.py`, `routes/export.py`, `tests/test_plans.py`, `tests/test_export.py`.
 
 **Interfaces:**
-- `plans.Recommendation` dataclass: `key: str`, `area: str`, `title: str`, `detail: str`, `impact: Impact`, `citations: list[str]`, `approximate: bool`.
+- `plans.Recommendation` dataclass: `key: str`, `area: str`, `title: str`, `detail: str`, `action_key: str`, `baseline_key: str`, `impact: Impact`, `citations: list[str]`, `approximate: bool`.
 - `plans.PlansPayload` dataclass: `routines: list[Recommendation]`, `hacks: list[Recommendation]`, `alternatives: list[Recommendation]`, `profile_note: str`.
 - `routines.build_routines(profile: Profile, context: AqiContext | None, hits: list[dict]) -> list[Recommendation]`.
 - `hacks.build_hacks(profile: Profile, context: AqiContext | None, hits: list[dict]) -> list[Recommendation]`.
@@ -365,7 +365,9 @@ pyproject.toml, requirements.txt, .env.example, .gitignore, Dockerfile, README.m
 **Steps:**
 - [ ] Write `tests/test_plans.py`: a profile with `commute_mode="car"`, `children=True`, `respiratory=True`, `cooking_fuel="wood"`, `budget_level="low"` and a Poor-band context produces >=3 routines, >=3 hacks, >=3 alternatives; routines mention the commute mode; hacks mention children/respiratory; alternatives mention the cooking fuel; ranking is descending by `co2e_kg_week`; every recommendation has an `Impact` and >=1 citation; `build_plans` with a default/empty profile still returns a 200-shaped payload with a "set your profile" note; unknown `area` -> 422; `GET /plans` without a token -> 401; owner scope (A's plans differ from B's when profiles differ).
 - [ ] Run `python -m pytest tests/test_plans.py -q` -> fail.
-- [ ] Implement `routines.py`, `hacks.py`, `alternatives.py` (each selects from `FACTORS` and `hits`), `plans.py` (orchestration + ranking), `schemas/plans.py`, `routes/plans.py`.
+- [ ] Write `tests/test_export.py`: `GET /export?format=json` with a token returns the caller's plans payload (routines/hacks/alternatives present, owner-scoped); `format=md` contains the three section headings and the profile note; another user's export differs when profiles differ; no token -> 401; unknown format -> 422.
+- [ ] Implement `routes/export.py`: `GET /export?format=md|json` (Bearer) reusing `build_plans` for the caller; json serializes `PlansPayload`, md renders headings + recommendations + citations.
+- [ ] Implement `routines.py`, `hacks.py`, `alternatives.py` (each selects from `FACTORS` and `hits`, and sets each recommendation's `action_key`/`baseline_key` from `FACTORS`), `plans.py` (orchestration + ranking), `schemas/plans.py`, `routes/plans.py`.
 - [ ] Run `tests/test_plans.py` -> pass; full suite -> pass.
 - [ ] Commit: `feat: personalized routines, hacks, alternatives with ranking`.
 
