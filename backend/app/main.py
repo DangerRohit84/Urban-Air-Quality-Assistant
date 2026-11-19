@@ -10,7 +10,8 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.app.config import settings
 from backend.app.errors import install_error_handlers
-from backend.app.middleware import SlidingWindowRateLimiter, security_headers
+from backend.app.middleware import security_headers
+from backend.app.rate_limiter import SlidingWindowRateLimiter
 from backend.app.routes import api_router
 
 ROOT = Path(__file__).resolve().parents[2]
