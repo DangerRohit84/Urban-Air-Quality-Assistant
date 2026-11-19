@@ -25,12 +25,30 @@ Every variable read by `backend/app/config.py`:
 | `PORT` | `8000` | Uvicorn port. |
 | `LOG_LEVEL` | `info` | Log level. |
 
+## Local verification
+
+```bash
+python -m pytest -q               # full suite
+python scripts/check_quality.py   # ruff + mypy + pytest + coverage gate
+python scripts/smoke.py http://127.0.0.1:8000
+```
+
+Build and run the container, then point the smoke script at it:
+
+```bash
+docker build -t urban-air-quality-assistant .
+docker run --rm -p 8000:8000 urban-air-quality-assistant
+python scripts/smoke.py http://127.0.0.1:8000
+```
+
 ## Render
 
-1. Push the branch and create a new Blueprint from the repository blueprint file.
+1. Push the branch and create a new Blueprint from the repository blueprint
+   file.
 2. Render builds the Docker image and runs `uvicorn` on `$PORT`.
-3. Set `AUTH_SECRET` (the blueprint generates one) and optionally `AQI_API_KEY`.
-4. Verify with `python scripts/smoke.py https://<your-render-url>`.
+3. The blueprint generates `AUTH_SECRET`; set `AQI_API_KEY` only if live AQI is
+   required.
+4. Verify the deployment with `python scripts/smoke.py https://<your-render-url>`.
 
 ## Production hardening
 
@@ -38,5 +56,6 @@ Every variable read by `backend/app/config.py`:
   fallback only.
 - Keep `AQI_API_KEY` empty for an offline-first deployment.
 - Front the service with TLS; the security middleware already sends HSTS.
+- Restrict `ALLOWED_ORIGINS` to the public origin in production.
 - The free tier uses ephemeral storage, so SQLite data does not survive a
   restart.
