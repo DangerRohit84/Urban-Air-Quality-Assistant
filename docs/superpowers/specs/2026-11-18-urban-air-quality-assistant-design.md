@@ -15,8 +15,8 @@ Why now: winter smog episodes on the Indo-Gangetic plain create acute, repeated 
 - GenAI chain: Gemini (when key set) -> OpenAI-compatible (when key set) -> local synthesis (default, deterministic, genuinely composes new text) -> echo (tests only). Grounded answers with citations; out-of-domain refusal; plain-language mode (shorter, same citations).
 - Personalization: user profile (city/climate zone; household: children, elderly, respiratory conditions; commute mode and distance; cooking fuel; heating; budget sensitivity) plus AQI context (band/value, season) producing tailored routines, indoor hacks, and alternatives.
 - Impact engine: each recommendation carries quantified impact (kg CO2e per week, PM2.5 exposure reduction percent, monthly cost delta in INR) computed from a transparent, cited factor table.
-- Live AQI: optional external provider (OpenWeather Air Pollution API) behind an env key; offline fallback is a user-entered AQI band. Approach C (offline-first, live enrichment).
-- Authentication: email + password (PBKDF2-HMAC-SHA256, 120k iterations, per-user salt), HMAC-SHA256 signed bearer tokens (sub, exp; AUTH_SECRET env or per-boot secret with warning), constant-time comparison, generic 401s, owner-scoped data with 404 on cross-user access. Public: /health, static assets, register, login.
+- Live AQI: optional external provider (OpenWeather Air Pollution API) behind an env key; offline fallback is a user-entered AQI band. Approach C (offline-first, live enrichment). Bands use Indian CPCB breakpoints; the live provider's native 1-5 index and raw PM2.5/PM10 are converted to the CPCB band by the aqi module.
+- Authentication: email + password (PBKDF2-HMAC-SHA256, 120k iterations, per-user salt), HMAC-SHA256 signed bearer tokens (sub, exp; AUTH_SECRET env or per-boot secret with warning), constant-time comparison, generic 401s, owner-scoped data (profiles, AQI context, documents) with 404 on cross-user access. Public: /health, static assets, register, login.
 - Dynamic corpus: seeded knowledge base plus authenticated document management API (create/list/delete) and optional PDF upload into the corpus.
 - Efficiency evidence: /health exposes cache stats, store counts, uptime; README carries a "Performance and resource bounds" section with measured claims; TF-IDF cached; bounded reads/parses; CPU-bound parse offloaded with asyncio.to_thread; LRU rate limiting.
 - Quality bar: ruff and mypy clean, every backend module under 150 lines (enforced), pytest coverage gate at 76% (target 85%+), 200+ tests, docs-claims tests, zero warnings.
@@ -60,13 +60,13 @@ backend/app/ with packages: routes/, schemas/, storage/, llm/, retrieval/, plus 
 - User: id, email, password hash, salt, created_at.
 - Profile: user_id, city, climate_zone, household flags (children, elderly, respiratory), commute_mode, commute_km, cooking_fuel, heating_type, budget_level.
 - Document: id, owner_id, kind (seed|corpus|upload), title, text, chunks, source, created_at.
-- AQI context: city, band, value, pm25, pm10, season, observed_at, source (user|live).
+- AQI context: owner_id, city, band, value, pm25, pm10, season, observed_at, source (user|live).
 
 ### API surface
 - GET /health — status, provider, cache stats, store counts, uptime (performance fields).
 - POST /auth/register, POST /auth/login, GET /auth/me.
 - GET/PUT /profile.
-- GET /air?q=<city> — live AQI when key configured, else 409/404-style graceful "not configured" with fallback hint; POST /air/context — store user-entered context.
+- GET /air?q=<city> — live AQI when key configured, else a graceful "not configured" response with fallback hint; the city is resolved through a built-in coordinates table (major Indian cities) with an optional live-geocode fallback, cached. POST /air/context — store the user-entered context (owner-scoped).
 - GET /plans?area=routines|hacks|alternatives — personalized, computed from profile + AQI context + corpus.
 - POST /ask — grounded GenAI answer with citations; plain_language flag; out-of-domain refusal.
 - POST /documents, GET /documents, DELETE /documents/{id}, POST /documents/upload (PDF) — owner-scoped, re-index on change.
@@ -79,7 +79,7 @@ factors.py holds a transparent table of emission/exposure/cost factors per activ
 passwords.py (PBKDF2), tokens.py (HMAC-SHA256 sign/verify with exp), service.py (register/login/verify, generic errors), dependencies.py (Bearer extraction, current_user), routes/auth.py. Storage: users table; owner_id on profiles and documents; migration path for existing databases.
 
 ### GenAI
-llm/base.py (provider protocol), llm/gemini.py, llm/openai_compat.py, llm/local_synth.py (deterministic composer: selects and reorders ranked chunks into new multi-sentence guidance with hedging and citations), llm/factory.py (precedence + config). prompting.py builds the grounded prompt (profile + AQI context + retrieved chunks + disclaimer + citation format). retrieval.py (TF-IDF with sklearn, cached) + retrieval_fallback.py (token overlap, zero-dep).
+llm/base.py (provider protocol), llm/gemini.py, llm/openai_compat.py, llm/local_synth.py (deterministic composer: selects and reorders ranked chunks into new multi-sentence guidance with hedging and citations), llm/factory.py (precedence + config). prompting.py builds the grounded prompt (profile + AQI context + retrieved chunks + disclaimer + citation format). retrieval.py (TF-IDF with sklearn, cached per owner: seed corpus plus that owner's documents, cache key includes owner_id) + retrieval_fallback.py (token overlap, zero-dep). Seed documents are global; user documents are owner-scoped; no cross-owner retrieval.
 
 ### Frontend
 Auth card (register/login) gating the app; profile form; AQI context panel (band select + "fetch live" button when available); three plan sections (routines, indoor hacks, alternatives); impact panel (CO2e, exposure, cost); ask box with plain-language toggle; document library. Accessibility: labels with for/id, aria-describedby hints, aria-live status regions, focus management on load/errors, documented WCAG AA contrast, prefers-reduced-motion, keyboard-operable controls, textContent-only DOM writes.
@@ -106,6 +106,10 @@ Unit (impact math, AQI bands, tokens, passwords, retrieval, local synth), API (a
 | Extractive-only default provider | Local synthesis provider as the default (generative) |
 | Static corpus | Seeded corpus + dynamic document API (+ upload) |
 | Thin efficiency evidence | /health metrics + README performance section + measured claims |
+
+## Evaluator rubric (inherited from the sibling project)
+
+Six weighted parameters: Problem Statement Alignment 30%, Code Quality 20%, Security 15%, Efficiency 15%, Testing 10%, Accessibility 10%. Twenty-one analyzer criteria roll up into them (project structure, architecture design, code modularity, readability, documentation, coding standards, technical complexity, implementation completeness, functional logic, error handling, configuration management, dependencies integration, testing QA, maintainability/scalability, problem alignment, security/privacy, implementation authenticity, accessibility, domain context, adaptive proactive assistance, GenAI implementation). The sibling project's only deductions were: no authentication with a shared database (Security 70), an extractive-only default provider (Alignment 95), a static corpus (weakness), and thin efficiency evidence (Efficiency 85). Treat those four as first-class requirements, not polish.
 
 ## Risks
 
