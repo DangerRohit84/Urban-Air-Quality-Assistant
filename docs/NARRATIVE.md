@@ -42,7 +42,7 @@ backend and the model provider can be swapped without touching the routes.
 
 ## Tests
 
-The suite collects **246 tests** (`pytest --collect-only`), including
+The suite collects **251 tests** (`pytest --collect-only`), including
 accessibility, security-boundary, efficiency and docs-claims tests.
 
 ## What to link

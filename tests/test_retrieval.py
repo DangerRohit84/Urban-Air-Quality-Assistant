@@ -79,6 +79,51 @@ def test_stop_word_query_returns_empty() -> None:
     assert retrieval.search("the and of to") == []
 
 
+def test_out_of_domain_natural_question_returns_empty() -> None:
+    """A natural out-of-domain question is not grounded on one shared word."""
+    assert retrieval.search("What is the best pizza topping in Naples?") == []
+
+
+def test_out_of_domain_technical_question_returns_empty() -> None:
+    """A technical out-of-domain question has no corpus support."""
+    assert retrieval.search("quantum entanglement") == []
+
+
+def test_legitimate_queries_return_hits() -> None:
+    """Genuine air-quality questions still ground against the seed corpus."""
+    for query in (
+        "indoor air purifier",
+        "how do I reduce smog exposure",
+        "safe AQI for children",
+    ):
+        assert retrieval.search(query), query
+
+
+def test_fallback_path_enforces_same_rule(monkeypatch: object) -> None:
+    """The zero-dependency ranker applies the same relevance rule."""
+
+    class _BrokenVectorizer:
+        def transform(self, _payload: list[str]) -> object:
+            raise RuntimeError("sklearn unavailable")
+
+    records = [
+        {
+            "id": "seed-001",
+            "title": "Indoor air purifiers and HEPA filtration",
+            "text": (
+                "An indoor air purifier with a HEPA filter removes fine "
+                "particulate matter from a single room for the best reduction."
+            ),
+            "source": "seed",
+        }
+    ]
+    monkeypatch.setattr(
+        retrieval, "_get_index", lambda _docs: (_BrokenVectorizer(), object(), records)
+    )
+
+    assert retrieval.search("What is the best pizza topping in Naples?") == []
+
+
 def test_empty_corpus_returns_empty() -> None:
     """An empty corpus yields no hits."""
     assert retrieval_fallback._rank_by_token_overlap([], "air quality", 5) == []

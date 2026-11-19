@@ -92,6 +92,23 @@ def test_out_of_domain_refuses_without_citations(
     assert body["answer"]
 
 
+def test_natural_out_of_domain_refuses_without_citations(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A natural out-of-domain question is refused, not grounded."""
+    response = client.post(
+        "/ask",
+        headers=auth_headers,
+        json={"question": "What is the best pizza topping in Naples?"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["grounded"] is False
+    assert body["citations"] == []
+    assert body["answer"]
+
+
 def test_empty_question_is_422(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:

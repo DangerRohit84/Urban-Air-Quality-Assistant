@@ -44,6 +44,11 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 - Cached search p50 0.6 ms, p95 0.8 ms; the test asserts a hard bound of 1.0 s.
 - Repeat searches hit the TF-IDF cache (54 hits / 1 miss in the sample, > 95%).
 - Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 95%.
+- Retrieval relevance: a hit grounds a question only when its TF-IDF cosine is
+  at least `0.15` **and** at least `30%` of the query's non-stop-word tokens
+  appear in the hit's text/title. A natural out-of-domain question that shares
+  one incidental word (for example a pizza question matching "best") is refused
+  with `grounded: false` and no citations.
 - Every backend module stays under 150 lines (enforced by a test).
 - Upload cap: 10 MiB (`MAX_UPLOAD_BYTES`); documents per owner: 10
   (`MAX_DOCUMENTS`).
@@ -52,7 +57,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **246 tests** collected by `pytest --collect-only`; the quality
+Test suite: **251 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash

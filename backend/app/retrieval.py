@@ -3,13 +3,29 @@
 from __future__ import annotations
 
 from backend.app.corpus import assemble_corpus, load_seed_corpus
-from backend.app.retrieval_fallback import _has_signal, _rank_by_token_overlap
+from backend.app.retrieval_fallback import (
+    _coverage,
+    _has_signal,
+    _rank_by_token_overlap,
+)
 from backend.app.retrieval_index import _get_index, get_index_stats, reset_index
 from backend.app.storage.store import get_repo
 
 MIN_TOP_K = 1
 MAX_TOP_K = 10
 DEFAULT_TOP_K = 5
+
+# A candidate hit counts as support only when it clears BOTH gates:
+#   * MIN_RELEVANCE - a TF-IDF cosine floor. 0.15 sits below the weakest
+#     legitimate seed query observed (~0.17) and above matches that share only
+#     a negligible slice of the query's term weight.
+#   * MIN_COVERAGE - at least 30% of the query's non-stop-word tokens must
+#     appear in the hit's text/title. This generalises "at least one content
+#     token": a one- or two-word query still needs a single match, while a long
+#     natural question such as the Naples repro (1 of 4 content tokens = 0.25)
+#     is refused instead of grounded on one incidental word.
+MIN_RELEVANCE = 0.15
+MIN_COVERAGE = 0.3
 
 
 def _clamp_top_k(top_k: int) -> int:
@@ -22,6 +38,35 @@ def _clamp_top_k(top_k: int) -> int:
         The clamped value.
     """
     return max(MIN_TOP_K, min(int(top_k), MAX_TOP_K))
+
+
+def _is_relevant(query: str, hit: dict) -> bool:
+    """Return True when ``hit`` is relevant enough to ground ``query``.
+
+    Args:
+        query: The raw query.
+        hit: The candidate hit.
+
+    Returns:
+        True when the score floor and the content-coverage floor both hold.
+    """
+    return (
+        float(hit.get("score", 0.0)) >= MIN_RELEVANCE
+        and _coverage(query, hit) >= MIN_COVERAGE
+    )
+
+
+def _relevant(hits: list[dict], query: str) -> list[dict]:
+    """Filter ``hits`` down to the ones that ground ``query``.
+
+    Args:
+        hits: The candidate hits.
+        query: The raw query.
+
+    Returns:
+        The hits that clear both relevance gates.
+    """
+    return [hit for hit in hits if _is_relevant(query, hit)]
 
 
 def search(
@@ -52,7 +97,7 @@ def search(
     try:
         scores = (vectorizer.transform([query]) @ matrix.T).toarray()[0]
     except Exception:  # noqa: BLE001 - degrade to the zero-dep ranker
-        return _rank_by_token_overlap(records, query, limit)
+        return _relevant(_rank_by_token_overlap(records, query, limit), query)
     order = sorted(
         range(len(records)),
         key=lambda index: (-scores[index], str(records[index]["id"])),
@@ -61,9 +106,11 @@ def search(
         {**records[index], "score": round(float(scores[index]), 6)}
         for index in order
     ]
-    hits = [hit for hit in hits if hit["score"] > 0]
+    hits = _relevant(hits, query)
     if not hits:
-        return _rank_by_token_overlap(records, query, limit)
+        # Zero-dependency path: the fallback score IS the token coverage, so
+        # applying the same filter keeps both paths on one rule.
+        hits = _relevant(_rank_by_token_overlap(records, query, limit), query)
     return hits[:limit]
 
 
