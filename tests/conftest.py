@@ -10,7 +10,9 @@ os.environ.setdefault("LLM_PROVIDER", "local_synth")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from backend.app.config import settings  # noqa: E402
 from backend.app.main import app  # noqa: E402
+from backend.app.rate_limiter import SlidingWindowRateLimiter  # noqa: E402
 from backend.app.storage.memory import InMemoryRepo  # noqa: E402
 from backend.app.storage.store import reset_repo  # noqa: E402
 
@@ -24,14 +26,24 @@ def _reset_retrieval_cache() -> None:
     retrieval.reset_cache()
 
 
+def _reset_rate_limiter() -> None:
+    """Install a fresh rate limiter so tests never inherit a full bucket."""
+    app.state.rate_limiter = SlidingWindowRateLimiter(
+        limit=settings.rate_limit_per_min,
+        max_buckets=settings.max_rate_buckets,
+    )
+
+
 @pytest.fixture(autouse=True)
 def _fresh_repo() -> object:
-    """Give every test a clean in-memory repository."""
+    """Give every test a clean in-memory repository and limiter."""
     reset_repo(InMemoryRepo())
     _reset_retrieval_cache()
+    _reset_rate_limiter()
     yield
     reset_repo(InMemoryRepo())
     _reset_retrieval_cache()
+    _reset_rate_limiter()
 
 
 @pytest.fixture
