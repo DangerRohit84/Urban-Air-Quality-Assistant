@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from backend.app.impact import Impact
 
 
 @dataclass(slots=True)
@@ -88,6 +91,29 @@ class AqiContext:
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-safe mapping of the context.
+
+        Returns:
+            A dictionary with every field.
+        """
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class Recommendation:
+    """One personalized recommendation with its computed impact."""
+
+    key: str
+    area: str
+    title: str
+    detail: str
+    action_key: str
+    baseline_key: str
+    impact: Impact
+    citations: list[str]
+    approximate: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe mapping of the recommendation.
 
         Returns:
             A dictionary with every field.
