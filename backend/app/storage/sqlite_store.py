@@ -72,6 +72,10 @@ class SQLiteRepo(SQLiteBackend):
         row = self.one("SELECT * FROM users WHERE id = ?", (user_id,))
         return row_to_user(row) if row else None
 
+    def update_user_password_hash(self, user_id: str, password_hash: str) -> None:
+        """Replace the password hash for ``user_id`` when it exists."""
+        self.run("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+
     def save_profile(self, profile: Profile) -> Profile:
         """Insert or update the profile for ``profile.user_id``."""
         self.upsert(
@@ -124,11 +128,8 @@ class SQLiteRepo(SQLiteBackend):
 
     def delete_document(self, doc_id: str, owner_id: str) -> bool:
         """Delete ``doc_id`` when owned by ``owner_id``."""
-        deleted = self.delete(
-            "DELETE FROM documents WHERE id = ? AND owner_id = ?",
-            (doc_id, owner_id),
-        )
-        return deleted > 0
+        sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
+        return self.delete(sql, (doc_id, owner_id)) > 0
 
     def count_documents(self, owner_id: str) -> int:
         """Return the number of documents owned by ``owner_id``."""

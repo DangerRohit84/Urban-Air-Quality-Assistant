@@ -26,13 +26,6 @@ def create_app() -> FastAPI:
         The configured application instance.
     """
     app = FastAPI(title="Urban Air Quality Assistant", version="0.1.0")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.allowed_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
     app.state.rate_limiter = SlidingWindowRateLimiter(
         limit=settings.rate_limit_per_min,
         max_buckets=settings.max_rate_buckets,
@@ -40,6 +33,13 @@ def create_app() -> FastAPI:
     app.add_middleware(
         BodyLimitMiddleware,
         upload_limit=settings.max_upload_bytes + UPLOAD_HEADROOM,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.middleware("http")(security_headers)
     install_error_handlers(app)

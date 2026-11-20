@@ -20,7 +20,9 @@ than oracular.
 
 - Real authentication and owner-scoped data; cross-user access returns 404.
 - Generic 401s that never reveal whether an account exists.
-- Passwords use PBKDF2-HMAC-SHA256 (600,000 iterations, 16-byte salt); bearer
+- Passwords use PBKDF2-HMAC-SHA256 (600,000 iterations, 16-byte salt) in a
+  self-describing record; legacy 120,000-iteration hashes still verify and are
+  upgraded on the next successful login. Bearer
   tokens are HMAC-SHA256 with an expiry. Unknown-email logins verify against a
   cached dummy hash so timing does not reveal account existence.
 - Request bodies are capped at 1 MiB (uploads get the configured cap plus
@@ -48,7 +50,7 @@ backend and the model provider can be swapped without touching the routes.
 
 ## Tests
 
-The suite collects **291 tests** (`pytest --collect-only`), including
+The suite collects **299 tests** (`pytest --collect-only`), including
 accessibility, security-boundary, efficiency and docs-claims tests.
 
 ## What to link

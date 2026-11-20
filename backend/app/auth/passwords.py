@@ -8,7 +8,9 @@ import os
 import re
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+ALGORITHM = "pbkdf2_sha256"
 ITERATIONS = 600_000
+LEGACY_ITERATIONS = 120_000
 SALT_BYTES = 16
 
 
@@ -48,39 +50,87 @@ def validate_password(password: str) -> None:
         raise ValueError("password must contain a digit")
 
 
-def hash_password(password: str) -> str:
-    """Hash a password with a fresh 16-byte salt.
+def hash_password(password: str, iterations: int = ITERATIONS) -> str:
+    """Hash a password into a self-describing PBKDF2 record.
 
     Args:
         password: The plaintext password.
+        iterations: The work factor to record with the hash.
 
     Returns:
-        The ``<32 hex salt>$<64 hex digest>`` string.
+        The ``pbkdf2_sha256$<iterations>$<salt hex>$<digest hex>`` string.
     """
     salt = os.urandom(SALT_BYTES)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, ITERATIONS)
-    return f"{salt.hex()}${digest.hex()}"
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    return f"{ALGORITHM}${iterations}${salt.hex()}${digest.hex()}"
+
+
+def _parse_hash(stored: str) -> tuple[int, bytes, bytes] | None:
+    """Parse a stored record into iterations, salt and expected digest.
+
+    A two-part ``salt$digest`` value is the pre-upgrade format and is verified
+    with the historical 120,000 iterations.
+
+    Args:
+        stored: The stored hash string in either supported format.
+
+    Returns:
+        The parsed tuple, or None when the record is malformed or unsupported.
+    """
+    parts = stored.split("$")
+    if len(parts) == 2:
+        iterations = LEGACY_ITERATIONS
+    elif len(parts) == 4 and parts[0] == ALGORITHM:
+        try:
+            iterations = int(parts[1])
+        except ValueError:
+            return None
+    else:
+        return None
+    if iterations <= 0:
+        return None
+    try:
+        return iterations, bytes.fromhex(parts[-2]), bytes.fromhex(parts[-1])
+    except ValueError:
+        return None
 
 
 def verify_password(password: str, stored: str) -> bool:
-    """Verify a password against a stored hash in constant time.
+    """Verify a password against any supported stored hash in constant time.
 
     Args:
         password: The plaintext password.
-        stored: The stored ``salt$digest`` string.
+        stored: A self-describing record or a legacy ``salt$digest`` record.
 
     Returns:
         True when the password matches, False otherwise or when the stored
         value is malformed.
     """
-    try:
-        salt_hex, digest_hex = stored.split("$")
-        salt = bytes.fromhex(salt_hex)
-        expected = bytes.fromhex(digest_hex)
-    except (ValueError, AttributeError):
+    parsed = _parse_hash(stored)
+    if parsed is None:
         return False
-    actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, ITERATIONS)
+    iterations, salt, expected = parsed
+    actual = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, iterations
+    )
     return hmac.compare_digest(actual, expected)
+
+
+def needs_rehash(stored: str) -> bool:
+    """Return whether a stored hash should be upgraded to the current cost.
+
+    Args:
+        stored: The stored hash string.
+
+    Returns:
+        True for legacy or older-iteration records, False for current records
+        and for malformed values.
+    """
+    parsed = _parse_hash(stored)
+    if parsed is None:
+        return False
+    iterations, _salt, _digest = parsed
+    return iterations < ITERATIONS
 
 
 # Precomputed once so an unknown-email login costs exactly one PBKDF2 verify.

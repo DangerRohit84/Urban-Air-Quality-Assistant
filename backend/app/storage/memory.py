@@ -44,12 +44,7 @@ class InMemoryRepo:
         with self._lock:
             if email in self._users_by_email:
                 raise ValueError("email already registered")
-            user = User(
-                id=_new_id(),
-                email=email,
-                password_hash=password_hash,
-                created_at=_now(),
-            )
+            user = User(_new_id(), email, password_hash, _now())
             self._users[user.id] = user
             self._users_by_email[user.email] = user.id
         return user
@@ -64,6 +59,13 @@ class InMemoryRepo:
         """Return the user with ``user_id``, or None."""
         with self._lock:
             return self._users.get(user_id)
+
+    def update_user_password_hash(self, user_id: str, password_hash: str) -> None:
+        """Replace the password hash for ``user_id`` when it exists."""
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is not None:
+                self._users[user_id] = replace(user, password_hash=password_hash)
 
     def save_profile(self, profile: Profile) -> Profile:
         """Insert or update the profile for ``profile.user_id``."""

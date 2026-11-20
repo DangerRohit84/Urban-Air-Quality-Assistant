@@ -60,7 +60,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **291 tests** collected by `pytest --collect-only`; the quality
+Test suite: **299 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -104,7 +104,10 @@ Test modules under `tests/`:
 
 ## Security
 
-- PBKDF2-HMAC-SHA256 passwords, 600,000 iterations, 16-byte per-user salt.
+- PBKDF2-HMAC-SHA256 passwords stored as
+  `pbkdf2_sha256$<iterations>$<salt>$<digest>`, 600,000 iterations, 16-byte
+  per-user salt. Legacy `salt$digest` hashes (120,000 iterations) still verify
+  and are transparently upgraded on the next successful login.
   Unknown-email logins still perform one PBKDF2 verification against a cached
   dummy hash, so account existence is not revealed by timing.
 - HMAC-SHA256 bearer tokens with `sub` and `exp`, compared in constant time.

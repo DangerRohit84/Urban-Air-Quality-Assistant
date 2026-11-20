@@ -146,6 +146,22 @@ def test_oversized_json_body_is_413_without_echo() -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
+def test_oversized_json_413_carries_cors_headers() -> None:
+    """A browser client can read the 413 for an allowed origin."""
+    client = _make_client()
+    payload = {"email": "x" * (1024 * 1024), "password": "TestPass123"}
+
+    response = client.post(
+        "/auth/register",
+        json=payload,
+        headers={"Origin": "http://localhost:8000"},
+    )
+
+    assert response.status_code == 413
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8000"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
 def test_streamed_oversized_body_is_413() -> None:
     """A chunked body is counted as it streams and rejected at the limit."""
     client = _make_client()

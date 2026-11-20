@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
 import pytest
 
 from backend.app.auth.passwords import (
+    ITERATIONS,
+    LEGACY_ITERATIONS,
     dummy_hash,
     hash_password,
+    needs_rehash,
     normalize_email,
     validate_password,
     verify_password,
@@ -18,17 +22,51 @@ from backend.app.auth.passwords import (
 SOURCE = (
     Path(__file__).resolve().parents[1] / "backend" / "app" / "auth" / "passwords.py"
 )
-HASH_RE = re.compile(r"^[0-9a-f]{32}\$[0-9a-f]{64}$")
+HASH_RE = re.compile(r"^pbkdf2_sha256\$600000\$[0-9a-f]{32}\$[0-9a-f]{64}$")
+
+
+def _legacy_hash(password: str) -> str:
+    """Build a pre-upgrade ``salt$digest`` record with 120k iterations.
+
+    Args:
+        password: The plaintext password.
+
+    Returns:
+        The legacy hash string.
+    """
+    salt = b"\x01" * 16
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, LEGACY_ITERATIONS
+    )
+    return f"{salt.hex()}${digest.hex()}"
 
 
 def test_hash_format_and_salt_uniqueness() -> None:
-    """Hashes match the salt$digest format and salts differ per call."""
+    """Hashes match the self-describing format and salts differ per call."""
     first = hash_password("Password1")
     second = hash_password("Password1")
 
     assert HASH_RE.match(first)
     assert HASH_RE.match(second)
+    assert first.startswith(f"pbkdf2_sha256${ITERATIONS}$")
     assert first != second
+
+
+def test_verify_accepts_legacy_120k_hash() -> None:
+    """A hash created before the work-factor upgrade still verifies."""
+    assert verify_password("Password1", _legacy_hash("Password1")) is True
+
+
+def test_verify_rejects_wrong_password_for_legacy_hash() -> None:
+    """A wrong password does not verify against a legacy hash."""
+    assert verify_password("Wrong1", _legacy_hash("Password1")) is False
+
+
+def test_needs_rehash_flags_legacy_and_accepts_current() -> None:
+    """Only hashes below the current work factor are scheduled for upgrade."""
+    assert needs_rehash(_legacy_hash("Password1")) is True
+    assert needs_rehash(hash_password("Password1")) is False
+    assert needs_rehash("nope") is False
 
 
 def test_verify_accepts_correct_password() -> None:

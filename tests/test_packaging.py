@@ -57,3 +57,11 @@ def test_seed_corpus_loads_from_the_checked_out_tree() -> None:
     assert len(documents) >= 8
     assert SEED_CORPUS_PATH.is_file()
     assert len({document.id for document in documents}) == len(documents)
+
+
+def test_dockerfile_disables_uvicorn_proxy_headers() -> None:
+    """Uvicorn must not rewrite client addresses before ``TRUST_PROXY`` runs."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    cmd = next(line for line in dockerfile.splitlines() if line.startswith("CMD "))
+    assert "--no-proxy-headers" in cmd

@@ -5,6 +5,7 @@ from __future__ import annotations
 from backend.app.auth.passwords import (
     dummy_hash,
     hash_password,
+    needs_rehash,
     normalize_email,
     validate_password,
     verify_password,
@@ -50,10 +51,15 @@ def authenticate(email: str, password: str) -> tuple[User, str] | None:
         normalized = normalize_email(email)
     except ValueError:
         return None
-    user = get_repo().get_user_by_email(normalized)
+    repo = get_repo()
+    user = repo.get_user_by_email(normalized)
     if user is None:
         verify_password(password, dummy_hash())
         return None
     if not verify_password(password, user.password_hash):
         return None
+    if needs_rehash(user.password_hash):
+        upgraded = hash_password(password)
+        repo.update_user_password_hash(user.id, upgraded)
+        user.password_hash = upgraded
     return user, create_token(user.id)

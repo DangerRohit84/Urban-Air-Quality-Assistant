@@ -122,6 +122,20 @@ def test_user_round_trip(repo: Repository) -> None:
     assert repo.get_user_by_id("nope") is None
 
 
+def test_update_user_password_hash(repo: Repository) -> None:
+    """Both backends replace a stored hash and ignore unknown users."""
+    user = repo.create_user("legacy@b.com", "old-hash")
+
+    repo.update_user_password_hash(user.id, "new-hash")
+    repo.update_user_password_hash("missing", "ignored")
+
+    updated = repo.get_user_by_email("legacy@b.com")
+    assert updated is not None
+    assert updated.password_hash == "new-hash"
+    assert repo.get_user_by_id(user.id) == updated
+    assert repo.count_users() == 1
+
+
 def test_duplicate_email_raises_value_error(repo: Repository) -> None:
     """Both backends reject a second registration for the same email."""
     repo.create_user("dupe@b.com", "hash")

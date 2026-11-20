@@ -26,6 +26,10 @@ class Repository(Protocol):
         """Return the user with ``user_id``, or None."""
         ...
 
+    def update_user_password_hash(self, user_id: str, password_hash: str) -> None:
+        """Replace the password hash for ``user_id`` when the user exists."""
+        ...
+
     def save_profile(self, profile: Profile) -> Profile:
         """Insert or update the profile for ``profile.user_id``."""
         ...
