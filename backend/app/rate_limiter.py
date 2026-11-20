@@ -8,6 +8,28 @@ from collections import OrderedDict
 WINDOW_SECONDS = 60.0
 
 
+def client_key(
+    forwarded_for: str | None,
+    peer_host: str | None,
+    trust_proxy: bool,
+) -> str:
+    """Resolve the bucket key, honoring the first proxy hop when trusted.
+
+    Args:
+        forwarded_for: The raw ``X-Forwarded-For`` header, if present.
+        peer_host: The direct socket peer address, if present.
+        trust_proxy: Whether proxy-supplied forwarding headers are trusted.
+
+    Returns:
+        The client key used for rate-limit bucketing.
+    """
+    if trust_proxy and forwarded_for:
+        first_hop = forwarded_for.split(",", 1)[0].strip()
+        if first_hop:
+            return first_hop
+    return peer_host or "unknown"
+
+
 class SlidingWindowRateLimiter:
     """Thread-safe sliding-window limiter with LRU bucket eviction."""
 

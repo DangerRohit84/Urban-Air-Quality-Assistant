@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -20,6 +21,17 @@ def install_error_handlers(app: FastAPI) -> None:
             status_code=400,
             content={"detail": str(exc) or "bad request"},
         )
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """Render 422 errors without echoing the submitted input."""
+        detail = [
+            {"loc": error["loc"], "msg": error["msg"], "type": error["type"]}
+            for error in exc.errors()
+        ]
+        return JSONResponse(status_code=422, content={"detail": detail})
 
     @app.exception_handler(HTTPException)
     async def _http_exception_handler(

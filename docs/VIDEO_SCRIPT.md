@@ -46,4 +46,4 @@ them."
 ## 2:40 - 3:00 - Wrap up
 
 "Export the plan as Markdown, or deploy the same image to Render. The whole
-gate - ruff, mypy, 268 tests, 93% coverage - runs locally with one command."
+gate - ruff, mypy, 291 tests, 93% coverage - runs locally with one command."

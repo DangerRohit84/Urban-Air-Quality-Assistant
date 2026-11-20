@@ -7,6 +7,7 @@ import re
 from backend.app.prompting import CANNOT_DETERMINE
 
 _SOURCE_RE = re.compile(r"^\[([^\]]+)\]\s*(.*)$", re.MULTILINE)
+_SOURCE_TAG_RE = re.compile(r"</?source\b[^>]*>")
 
 
 def _sources(prompt: str) -> list[tuple[str, str]]:
@@ -18,10 +19,10 @@ def _sources(prompt: str) -> list[tuple[str, str]]:
     Returns:
         The (id, text) pairs.
     """
-    section = prompt.split("Cited sources:", 1)[-1].split("Disclaimer:", 1)[0]
+    section = prompt.rsplit("Cited sources:", 1)[-1].split("Disclaimer:", 1)[0]
     pairs: list[tuple[str, str]] = []
     for match in _SOURCE_RE.finditer(section):
-        text = match.group(2).strip()
+        text = _SOURCE_TAG_RE.sub("", match.group(2)).strip()
         if ": " in text:
             text = text.split(": ", 1)[1]
         pairs.append((match.group(1), text))

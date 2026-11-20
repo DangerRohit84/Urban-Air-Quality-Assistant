@@ -8,7 +8,7 @@ import os
 import re
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-ITERATIONS = 120_000
+ITERATIONS = 600_000
 SALT_BYTES = 16
 
 
@@ -83,10 +83,14 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(actual, expected)
 
 
+# Precomputed once so an unknown-email login costs exactly one PBKDF2 verify.
+DUMMY_HASH = hash_password("dummy-password-123")
+
+
 def dummy_hash() -> str:
-    """Return a well-formed hash used to equalize unknown-email lookups.
+    """Return the well-formed hash used to equalize unknown-email lookups.
 
     Returns:
-        A hash string in the same format as :func:`hash_password`.
+        A cached hash string in the same format as :func:`hash_password`.
     """
-    return hash_password("dummy-password-123")
+    return DUMMY_HASH

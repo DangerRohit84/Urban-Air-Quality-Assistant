@@ -74,9 +74,20 @@ def test_dummy_hash_is_well_formed() -> None:
     assert HASH_RE.match(dummy_hash())
 
 
+def test_dummy_hash_is_computed_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The dummy hash is cached rather than re-hashed on every use."""
+    first = dummy_hash()
+    monkeypatch.setattr(
+        "backend.app.auth.passwords.hash_password",
+        lambda password: "changed",
+    )
+
+    assert dummy_hash() == first
+
+
 def test_source_uses_pbkdf2_and_constant_time_compare() -> None:
-    """The implementation uses PBKDF2 with 120k iterations and compare_digest."""
+    """The implementation uses PBKDF2 with 600k iterations and compare_digest."""
     source = SOURCE.read_text(encoding="utf-8")
 
     assert "hmac.compare_digest" in source
-    assert "120_000" in source
+    assert "600_000" in source

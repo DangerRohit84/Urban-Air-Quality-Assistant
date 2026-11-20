@@ -20,8 +20,14 @@ than oracular.
 
 - Real authentication and owner-scoped data; cross-user access returns 404.
 - Generic 401s that never reveal whether an account exists.
-- Passwords use PBKDF2-HMAC-SHA256 (120,000 iterations, 16-byte salt); bearer
-  tokens are HMAC-SHA256 with an expiry.
+- Passwords use PBKDF2-HMAC-SHA256 (600,000 iterations, 16-byte salt); bearer
+  tokens are HMAC-SHA256 with an expiry. Unknown-email logins verify against a
+  cached dummy hash so timing does not reveal account existence.
+- Request bodies are capped at 1 MiB (uploads get the configured cap plus
+  multipart headroom), validation errors never echo submitted input, and
+  retrieved sources are escaped inside `<source>` delimiters.
+- `/health` is exempt from rate limiting, and `TRUST_PROXY` enables
+  first-hop-aware buckets behind a trusted proxy.
 - Disclaimer: This guidance is general information, not medical advice.
 
 ## Gen AI usage
@@ -42,7 +48,7 @@ backend and the model provider can be swapped without touching the routes.
 
 ## Tests
 
-The suite collects **268 tests** (`pytest --collect-only`), including
+The suite collects **291 tests** (`pytest --collect-only`), including
 accessibility, security-boundary, efficiency and docs-claims tests.
 
 ## What to link

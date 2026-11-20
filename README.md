@@ -51,13 +51,16 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
   with `grounded: false` and no citations.
 - Every backend module stays under 150 lines (enforced by a test).
 - Upload cap: 10 MiB (`MAX_UPLOAD_BYTES`); documents per owner: 10
-  (`MAX_DOCUMENTS`).
+  (`MAX_DOCUMENTS`). Ordinary request bodies are capped at 1 MiB; the upload
+  route gets the 10 MiB cap plus 1 MiB of multipart headroom.
 - Rate limit: 200 requests/minute per client (`RATE_LIMIT_PER_MIN`), at most
-  10,000 buckets (`MAX_RATE_BUCKETS`).
+  10,000 buckets (`MAX_RATE_BUCKETS`). `/health` is exempt so probes cannot
+  exhaust a user's budget. Set `TRUST_PROXY=true` behind a trusted reverse
+  proxy to bucket on the first `X-Forwarded-For` hop.
 
 ## Tests
 
-Test suite: **268 tests** collected by `pytest --collect-only`; the quality
+Test suite: **291 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -69,8 +72,8 @@ python scripts/check_quality.py  # ruff + mypy + pytest + coverage gate
 
 Backend modules under `backend/app/`:
 
-- `access.py`, `config.py`, `errors.py`, `main.py`, `metrics.py`,
-  `middleware.py`, `models.py`, `profile.py`, `security.py`.
+- `access.py`, `body_limit.py`, `config.py`, `errors.py`, `main.py`,
+  `metrics.py`, `middleware.py`, `models.py`, `profile.py`, `security.py`.
 - `aqi.py`, `cities.py`, `factors.py`, `impact.py`, `routines.py`,
   `hacks.py`, `alternatives.py`, `plans.py`, `prompting.py`.
 - `chunking.py`, `corpus.py`, `retrieval.py`, `retrieval_index.py`,
@@ -101,14 +104,20 @@ Test modules under `tests/`:
 
 ## Security
 
-- PBKDF2-HMAC-SHA256 passwords, 120,000 iterations, 16-byte per-user salt.
+- PBKDF2-HMAC-SHA256 passwords, 600,000 iterations, 16-byte per-user salt.
+  Unknown-email logins still perform one PBKDF2 verification against a cached
+  dummy hash, so account existence is not revealed by timing.
 - HMAC-SHA256 bearer tokens with `sub` and `exp`, compared in constant time.
 - Generic `{"detail": "invalid credentials"}` 401s for every auth failure, so
   the response never reveals whether an account exists.
 - Owner-scoped profiles, AQI context and documents; cross-user access returns
   404, never 403/401/200.
-- Security headers, a sliding-window LRU rate limiter with `Retry-After`, and
-  bounded reads and parses.
+- Security headers, proxy-aware sliding-window rate limiting with `Retry-After`,
+  and bounded body reads and PDF parses. Validation errors return only
+  `loc`/`msg`/`type`, never the submitted input.
+- Retrieved sources are wrapped in escaped `<source>` elements under an
+  instruction-hierarchy banner, so document text cannot inject prompt lines or
+  fake citation markers.
 
 ## Efficiency
 

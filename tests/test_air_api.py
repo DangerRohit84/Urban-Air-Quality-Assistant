@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.air.provider import LiveAqiReading
@@ -184,6 +185,36 @@ def test_context_unknown_city_is_422(
     )
 
     assert response.status_code == 422
+
+
+def test_oversized_air_city_is_422(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A city above 80 characters is rejected."""
+    response = client.post(
+        "/air/context",
+        headers=auth_headers,
+        json={**CONTEXT, "city": "x" * 81},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("field", ["value", "pm25", "pm10"])
+def test_out_of_range_air_values_are_422_without_echo(
+    client: TestClient, auth_headers: dict[str, str], field: str
+) -> None:
+    """Huge numeric readings are rejected and never echoed."""
+    huge = 10**30
+
+    response = client.post(
+        "/air/context",
+        headers=auth_headers,
+        json={**CONTEXT, field: huge},
+    )
+
+    assert response.status_code == 422
+    assert str(huge) not in response.text
 
 
 def test_openweather_adapter_parses_payload() -> None:

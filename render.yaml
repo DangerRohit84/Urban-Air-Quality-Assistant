@@ -14,3 +14,5 @@ services:
         generateValue: true
       - key: AQI_API_KEY
         sync: false
+      - key: TRUST_PROXY
+        value: "true"

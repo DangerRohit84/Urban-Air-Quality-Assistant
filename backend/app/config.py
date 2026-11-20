@@ -98,6 +98,10 @@ class Settings:
     max_rate_buckets: int = field(
         default_factory=lambda: _env_int("MAX_RATE_BUCKETS", 10000)
     )
+    trust_proxy: bool = field(
+        default_factory=lambda: _env_str("TRUST_PROXY", "false").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
     max_upload_bytes: int = field(
         default_factory=lambda: _env_int("MAX_UPLOAD_BYTES", 10485760)
     )

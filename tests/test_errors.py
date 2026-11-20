@@ -50,6 +50,24 @@ def test_http_exception_passthrough_keeps_status_and_detail() -> None:
     assert response.json() == {"detail": "conflict"}
 
 
+def test_validation_error_is_sanitized() -> None:
+    """Validation errors keep only loc, msg and type, never the input."""
+    client = TestClient(create_app())
+    marker = "sensitive-marker-" + "x" * 600
+
+    response = client.post(
+        "/auth/register",
+        json={"email": marker, "password": "TestPass123"},
+    )
+
+    assert response.status_code == 422
+    assert marker not in response.text
+    detail = response.json()["detail"]
+    assert detail
+    for item in detail:
+        assert set(item) == {"loc", "msg", "type"}
+
+
 def test_error_bodies_never_leak_tracebacks() -> None:
     """No error body contains traceback text."""
     app = create_app()

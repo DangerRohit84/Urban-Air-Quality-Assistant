@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from backend.app.aqi import CPCB_BANDS
 
@@ -13,12 +13,12 @@ SEASONS = frozenset({"winter", "summer", "monsoon", "post_monsoon"})
 class AirContextIn(BaseModel):
     """Payload accepted by ``POST /air/context``."""
 
-    city: str
-    band: str
-    season: str
-    value: int | None = None
-    pm25: float | None = None
-    pm10: float | None = None
+    city: str = Field(min_length=1, max_length=80)
+    band: str = Field(max_length=40)
+    season: str = Field(max_length=40)
+    value: int | None = Field(default=None, ge=0, le=1000)
+    pm25: float | None = Field(default=None, ge=0, le=2000)
+    pm10: float | None = Field(default=None, ge=0, le=2000)
 
     @field_validator("band")
     @classmethod

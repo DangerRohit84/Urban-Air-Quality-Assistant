@@ -8,7 +8,11 @@ from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 
+from backend.app.config import settings
+from backend.app.rate_limiter import client_key
+
 RETRY_AFTER = "60"
+EXEMPT_PATHS = frozenset({"/health"})
 
 _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -33,7 +37,15 @@ def rate_limit(request: Request) -> None:
     limiter = getattr(request.app.state, "rate_limiter", None)
     if limiter is None:
         return
-    key = request.client.host if request.client else "unknown"
+    if request.url.path in EXEMPT_PATHS:
+        request.state.rate_limit_remaining = limiter.limit
+        request.state.rate_limit_reset = 0
+        return
+    key = client_key(
+        request.headers.get("x-forwarded-for"),
+        request.client.host if request.client else None,
+        settings.trust_proxy,
+    )
     allowed, remaining, reset = limiter.check(key, time.time())
     request.state.rate_limit_remaining = remaining
     request.state.rate_limit_reset = reset
@@ -48,24 +60,20 @@ def rate_limit(request: Request) -> None:
 def _attach_headers(
     resp: Response,
     request: Request,
-    start: float,
     limited: bool = False,
 ) -> Response:
-    """Attach security, timing and rate-limit headers to ``resp``.
+    """Attach security and rate-limit headers to ``resp``.
 
     Args:
         resp: The response to decorate.
         request: The request that produced the response.
-        start: The ``time.perf_counter()`` reading taken before the call.
         limited: Whether the response is a rate-limit rejection.
 
     Returns:
         The decorated response.
     """
-    elapsed = time.perf_counter() - start
     for name, value in _SECURITY_HEADERS.items():
         resp.headers[name] = value
-    resp.headers["X-Process-Time"] = f"{elapsed:.6f}"
     limiter = getattr(request.app.state, "rate_limiter", None)
     if limiter is not None:
         resp.headers["X-RateLimit-Limit"] = str(limiter.limit)
@@ -91,7 +99,6 @@ async def security_headers(
     Returns:
         The decorated response.
     """
-    start = time.perf_counter()
     try:
         rate_limit(request)
     except HTTPException as exc:
@@ -100,7 +107,7 @@ async def security_headers(
             content={"detail": exc.detail},
             headers=exc.headers,
         )
-        return _attach_headers(rejected, request, start, limited=True)
+        return _attach_headers(rejected, request, limited=True)
     try:
         response: Response = await call_next(request)
     except Exception:  # noqa: BLE001 - the middleware must never leak crashes
@@ -108,4 +115,4 @@ async def security_headers(
             status_code=500,
             content={"detail": "Internal server error"},
         )
-    return _attach_headers(response, request, start)
+    return _attach_headers(response, request)

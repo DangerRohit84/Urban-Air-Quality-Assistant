@@ -89,6 +89,18 @@ def test_rate_limit_parses_int_env_with_default(monkeypatch: pytest.MonkeyPatch)
     assert Settings().rate_limit_per_min == 42
 
 
+def test_trust_proxy_defaults_false_and_parses_truthy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``TRUST_PROXY`` is opt-in and accepts common truthy spellings."""
+    monkeypatch.delenv("TRUST_PROXY", raising=False)
+    assert Settings().trust_proxy is False
+
+    for value in ("1", "true", "YES", "on", "false", "0", ""):
+        monkeypatch.setenv("TRUST_PROXY", value)
+        assert Settings().trust_proxy is (value in {"1", "true", "YES", "on"})
+
+
 def test_aqi_api_key_defaults_to_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     """``AQI_API_KEY`` defaults to the empty string (offline-first)."""
     monkeypatch.delenv("AQI_API_KEY", raising=False)

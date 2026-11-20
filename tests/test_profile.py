@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.auth.dependencies import load_profile_or_default
@@ -100,6 +101,23 @@ def test_city_too_long_is_422(
         "/profile",
         headers=auth_headers,
         json={**VALID, "city": "x" * 81},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["climate_zone", "commute_mode", "cooking_fuel", "heating_type", "budget_level"],
+)
+def test_oversized_profile_text_fields_are_422(
+    client: TestClient, auth_headers: dict[str, str], field: str
+) -> None:
+    """Every short profile text field is bounded at 40 characters."""
+    response = client.put(
+        "/profile",
+        headers=auth_headers,
+        json={**VALID, field: "x" * 41},
     )
 
     assert response.status_code == 422

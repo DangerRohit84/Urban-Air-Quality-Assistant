@@ -70,6 +70,26 @@ def test_malformed_email_is_422(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_oversized_email_is_422(client: TestClient) -> None:
+    """An email above 254 characters is rejected."""
+    response = client.post(
+        "/auth/register",
+        json={"email": "a" * 250 + "@x.com", "password": "TestPass123"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_oversized_password_is_422(client: TestClient) -> None:
+    """A password above 128 characters is rejected."""
+    response = client.post(
+        "/auth/register",
+        json={"email": "long@example.com", "password": "A" * 120 + "1" * 10},
+    )
+
+    assert response.status_code == 422
+
+
 def test_login_correct_returns_200(client: TestClient) -> None:
     """A correct login returns a fresh token."""
     client.post(

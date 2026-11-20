@@ -68,10 +68,9 @@ def test_non_pdf_upload_is_400(
     assert response.status_code == 400
 
 
-def test_process_time_header_is_present(client: TestClient) -> None:
-    """Every response reports its processing time."""
+def test_process_time_header_is_not_exposed(client: TestClient) -> None:
+    """Internal processing timing is not exposed to clients."""
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert "x-process-time" in response.headers
-    assert float(response.headers["x-process-time"]) >= 0
+    assert "x-process-time" not in response.headers
