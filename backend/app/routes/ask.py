@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from backend.app.auth.dependencies import load_profile_or_default, require_user_id
 from backend.app.llm.factory import build_provider
 from backend.app.plans import PROFILE_NOTE
-from backend.app.prompting import OUT_OF_DOMAIN, build_prompt
+from backend.app.prompting import OUT_OF_DOMAIN, build_prompt, build_sources
 from backend.app.retrieval import search
 from backend.app.schemas.ask import AskIn, AskResponse
 from backend.app.storage.store import get_repo
@@ -43,7 +43,11 @@ def ask(
     prompt = build_prompt(
         payload.question, profile, context, hits, payload.plain_language
     )
-    answer = build_provider().answer(prompt, plain_language=payload.plain_language)
+    answer = build_provider().answer(
+        prompt,
+        plain_language=payload.plain_language,
+        sources=build_sources(hits),
+    )
     if not profile.city:
         answer = f"{PROFILE_NOTE} {answer}"
     citations = [str(hit["id"]) for hit in hits[:3]]

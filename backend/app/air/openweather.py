@@ -10,7 +10,7 @@ from backend.app.air.provider import LiveAqiReading
 from backend.app.aqi import band_from_openweather_index, band_midpoint
 from backend.app.cities import City
 
-DEFAULT_BASE_URL = "https://api.openweathermap.org/data/2.5/air-pollution"
+DEFAULT_BASE_URL = "https://api.openweathermap.org/data/2.5/air_pollution"
 TIMEOUT_SECONDS = 5.0
 
 
@@ -79,7 +79,7 @@ class OpenWeatherProvider:
         with self._client(url, timeout=TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
         entry = payload["list"][0]
-        index = int(entry["main"]["a"])
+        index = int(entry["main"]["aqi"])
         components = entry.get("components", {})
         pm25_raw = components.get("pm2_5")
         pm10_raw = components.get("pm10")

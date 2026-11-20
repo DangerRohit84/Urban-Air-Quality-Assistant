@@ -72,7 +72,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **321 tests** collected by `pytest --collect-only`; the quality
+Test suite: **339 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -174,10 +174,13 @@ Test modules under `tests/`:
 | POST | `/documents/upload` | yes | Upload and parse a PDF. |
 | GET | `/export?format=` | yes | Export the plan as Markdown or JSON. |
 
-`GET /air` returns a CPCB `band` with a `value` inside that band. For a live
-OpenWeather reading the adapter reports the band midpoint (for example Poor ->
-250) and keeps the raw 1-5 provider index in `native_index`; saved-context and
-unconfigured responses leave `native_index` null.
+`GET /air` returns a CPCB `band` with a `value` inside that band and a
+`source` of `live`, `offline` or `not_configured`. For a live OpenWeather
+reading the adapter calls `/data/2.5/air_pollution`, maps the provider's 1-5
+`main.aqi` index to a CPCB band, reports the band midpoint as `value` (for
+example Poor -> 250) and keeps the raw index in `native_index`. `offline` means
+a key is configured but the provider failed; `not_configured` means no key is
+set. Saved-context and unconfigured responses leave `native_index` null.
 
 ## Deploy
 

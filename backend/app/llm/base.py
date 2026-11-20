@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Protocol
+
+from backend.app.prompting import Source
 
 
 class LLMProvider(Protocol):
@@ -10,7 +13,13 @@ class LLMProvider(Protocol):
 
     name: str
 
-    def answer(self, prompt: str, *, plain_language: bool = False) -> str:
+    def answer(
+        self,
+        prompt: str,
+        *,
+        plain_language: bool = False,
+        sources: Sequence[Source] | None = None,
+    ) -> str:
         """Answer ``prompt``."""
         ...
 
@@ -20,12 +29,19 @@ class EchoProvider:
 
     name = "echo"
 
-    def answer(self, prompt: str, *, plain_language: bool = False) -> str:
+    def answer(
+        self,
+        prompt: str,
+        *,
+        plain_language: bool = False,
+        sources: Sequence[Source] | None = None,
+    ) -> str:
         """Return ``prompt``.
 
         Args:
             prompt: The prompt.
             plain_language: Ignored.
+            sources: Ignored.
 
         Returns:
             The prompt.

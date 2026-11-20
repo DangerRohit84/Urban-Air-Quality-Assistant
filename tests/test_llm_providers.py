@@ -8,6 +8,7 @@ from backend.app.config import settings
 from backend.app.llm.base import EchoProvider
 from backend.app.llm.factory import build_provider
 from backend.app.llm.local_synth import LocalSynthProvider
+from backend.app.prompting import Source
 
 PROMPT = (
     "User question:\nWhat helps?\n\nCited sources:\n"
@@ -16,6 +17,16 @@ PROMPT = (
     "[seed-003] Masks: An N95 mask filters fine particles.\n\n"
     "Disclaimer: general information.\n"
 )
+
+SOURCES = [
+    Source(
+        id="seed-001",
+        title="Purifiers",
+        text="A HEPA purifier removes fine particles.",
+    ),
+    Source(id="seed-002", title="Ventilation", text="Open windows at night."),
+    Source(id="seed-003", title="Masks", text="An N95 mask filters fine particles."),
+]
 
 
 def test_explicit_echo_provider() -> None:
@@ -78,21 +89,21 @@ def test_local_synth_composes_new_text() -> None:
         "An N95 mask filters fine particles.",
     }
 
-    answer = provider.answer(PROMPT)
+    answer = provider.answer(PROMPT, sources=SOURCES)
 
     assert "Sources:" in answer
     assert "seed-001" in answer
     assert answer.strip() not in chunks
     assert "Evidence suggests that" in answer
-    assert provider.answer(PROMPT) == answer
+    assert provider.answer(PROMPT, sources=SOURCES) == answer
 
 
 def test_plain_output_is_shorter_with_same_citations() -> None:
     """Plain mode shortens the body but keeps the citations."""
     provider = LocalSynthProvider()
 
-    standard = provider.answer(PROMPT)
-    plain = provider.answer(PROMPT, plain_language=True)
+    standard = provider.answer(PROMPT, sources=SOURCES)
+    plain = provider.answer(PROMPT, plain_language=True, sources=SOURCES)
 
     assert len(plain) < len(standard)
     assert plain.split("Sources:")[-1] == standard.split("Sources:")[-1]
@@ -126,7 +137,9 @@ def test_gemini_failure_falls_back_to_local(monkeypatch: object) -> None:
         raise OSError("offline")
 
     monkeypatch.setattr(gemini, "post_json", boom)
-    answer = gemini.GeminiProvider(api_key="secret", model="m").answer(PROMPT)
+    answer = gemini.GeminiProvider(api_key="secret", model="m").answer(
+        PROMPT, sources=SOURCES
+    )
 
     assert "Sources:" in answer
     assert "seed-001" in answer
@@ -137,7 +150,9 @@ def test_malformed_gemini_response_falls_back(monkeypatch: object) -> None:
     from backend.app.llm import gemini
 
     monkeypatch.setattr(gemini, "post_json", lambda *args: {"candidates": []})
-    answer = gemini.GeminiProvider(api_key="secret", model="m").answer(PROMPT)
+    answer = gemini.GeminiProvider(api_key="secret", model="m").answer(
+        PROMPT, sources=SOURCES
+    )
 
     assert "Sources:" in answer
 
@@ -178,7 +193,7 @@ def test_openai_compat_empty_text_falls_back(monkeypatch: object) -> None:
     )
     answer = openai_compat.OpenAICompatProvider(
         api_key="secret", base_url="https://example.test/v1", model="model"
-    ).answer(PROMPT)
+    ).answer(PROMPT, sources=SOURCES)
 
     assert "Sources:" in answer
 

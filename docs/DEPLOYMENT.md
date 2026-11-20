@@ -12,7 +12,7 @@ Every variable read by `backend/app/config.py`:
 | `OPENAI_API_KEY` | empty | Enables the OpenAI-compatible provider when set. |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible endpoint. |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI-compatible model name. |
-| `AQI_API_KEY` | empty | Enables live AQI; the response maps the provider's 1-5 index to a CPCB band, reports the band midpoint as `value`, and keeps the raw index in `native_index`. When empty the user-entered band is authoritative. |
+| `AQI_API_KEY` | empty | Enables live AQI. The adapter calls `/data/2.5/air_pollution`, maps the provider's 1-5 `main.aqi` index to a CPCB band, reports the band midpoint as `value`, and keeps the raw index in `native_index`. When empty, `GET /air` reports `source: not_configured` and the user-entered band is authoritative; when set but the provider fails, it reports `source: offline` and falls back to the saved band. |
 | `STORE_BACKEND` | `sqlite` | `sqlite` or `memory`. |
 | `DATABASE_URL` | `sqlite:///./data/air.db` | SQLite location. |
 | `AUTH_SECRET` | per-boot random | HMAC token secret; set explicitly in production. |

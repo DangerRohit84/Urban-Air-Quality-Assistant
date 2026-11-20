@@ -113,8 +113,77 @@ def test_live_provider_failure_falls_back(
     response = client.get("/air?q=Delhi", headers=auth_headers)
 
     assert response.status_code == 200
-    assert response.json()["source"] == "not_configured"
-    assert response.json()["fallback"]
+    assert response.json()["source"] == "offline"
+    assert "unavailable" in response.json()["fallback"]
+
+
+def test_live_provider_failure_with_saved_context_is_offline(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch: object,
+) -> None:
+    """A configured provider failure serves the saved band as offline."""
+    monkeypatch.setattr(settings, "aqi_api_key", "key")
+    client.post("/air/context", headers=auth_headers, json=CONTEXT)
+    monkeypatch.setattr(
+        "backend.app.routes.air.OpenWeatherProvider",
+        lambda api_key: _RaisingProvider(),
+    )
+
+    response = client.get("/air?q=Delhi", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "offline"
+    assert body["band"] == "Poor"
+    assert body["value"] == 250
+    assert "unavailable" in body["fallback"]
+
+
+def test_live_route_uses_official_endpoint_and_payload(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch: object,
+) -> None:
+    """The route calls the official endpoint and parses ``main.aqi``."""
+    monkeypatch.setattr(settings, "aqi_api_key", "key")
+    payload = {
+        "list": [
+            {
+                "main": {"aqi": 3},
+                "components": {"pm2_5": 80.0, "pm10": 120.0},
+            }
+        ]
+    }
+    captured: dict[str, str] = {}
+
+    class _Response:
+        def read(self) -> bytes:
+            return json.dumps(payload).encode()
+
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *args: object) -> bool:
+            return False
+
+    def fake_urlopen(url: str, timeout: float) -> _Response:
+        captured["url"] = url
+        return _Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    response = client.get("/air?q=Delhi", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "live"
+    assert body["band"] == "Moderately Polluted"
+    assert body["value"] == 150
+    assert body["native_index"] == 3
+    assert body["pm25"] == 80.0
+    assert "/data/2.5/air_pollution" in captured["url"]
+    assert "air-pollution" not in captured["url"]
 
 
 def test_unknown_city_is_404(client: TestClient, auth_headers: dict[str, str]) -> None:
@@ -228,7 +297,7 @@ def test_openweather_adapter_parses_payload() -> None:
     payload = {
         "list": [
             {
-                "main": {"a": 4},
+                "main": {"aqi": 4},
                 "components": {"pm2_5": 150.0, "pm10": 210.5},
             }
         ]
@@ -245,10 +314,15 @@ def test_openweather_adapter_parses_payload() -> None:
             return False
 
     class _Client:
+        def __init__(self) -> None:
+            self.urls: list[str] = []
+
         def __call__(self, url: str, timeout: float) -> _Response:
+            self.urls.append(url)
             return _Response()
 
-    provider = OpenWeatherProvider("key", client=_Client())
+    client = _Client()
+    provider = OpenWeatherProvider("key", client=client)
     reading = provider.fetch(resolve_city("Delhi"))
 
     assert reading.band.name == "Poor"
@@ -257,3 +331,7 @@ def test_openweather_adapter_parses_payload() -> None:
     assert reading.pm25 == 150.0
     assert reading.pm10 == 210.5
     assert reading.source == "live"
+    assert client.urls == [
+        "https://api.openweathermap.org/data/2.5/air_pollution"
+        "?lat=28.6139&lon=77.209&appid=key"
+    ]

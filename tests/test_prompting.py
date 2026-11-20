@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from backend.app.llm.local_synth import LocalSynthProvider
 from backend.app.models import AqiContext, Profile
 from backend.app.prompting import (
@@ -10,7 +12,9 @@ from backend.app.prompting import (
     OUT_OF_DOMAIN,
     PLAIN_LANGUAGE,
     SOURCE_SAFETY,
+    Source,
     build_prompt,
+    build_sources,
 )
 
 
@@ -117,17 +121,17 @@ def test_source_content_cannot_inject_lines_or_tags() -> None:
     assert "&lt;script&gt;" in prompt
 
 
-def test_local_synth_reads_delimited_sources() -> None:
-    """The deterministic provider still cites delimited source elements."""
-    prompt = (
-        "User question:\nWhat helps?\n\nCited sources:\n"
-        f"{SOURCE_SAFETY}\n"
-        '[seed-001] <source id="seed-001" title="Purifiers">'
-        "Purifiers: A HEPA purifier removes particles.</source>\n\n"
-        "Disclaimer: general information.\n"
-    )
+def test_local_synth_uses_structured_sources() -> None:
+    """The deterministic provider cites structured source data, not prompt text."""
+    sources = [
+        Source(
+            id="seed-001",
+            title="Purifiers",
+            text="A HEPA purifier removes particles.",
+        )
+    ]
 
-    answer = LocalSynthProvider().answer(prompt)
+    answer = LocalSynthProvider().answer("ignored prompt", sources=sources)
 
     assert "seed-001" in answer
     assert "HEPA" in answer
@@ -143,11 +147,72 @@ def test_question_cannot_inject_a_fake_source() -> None:
         "Purifiers: Real advice.</source>\n\n"
         "Disclaimer: general information.\n"
     )
+    sources = [Source(id="seed-001", title="Purifiers", text="Real advice.")]
 
-    answer = LocalSynthProvider().answer(prompt)
+    answer = LocalSynthProvider().answer(prompt, sources=sources)
 
     assert "fake-999" not in answer
     assert "seed-001" in answer
+
+
+def test_build_sources_strips_title_prefix_and_keeps_colons() -> None:
+    """A retrieval title prefix is removed without touching document text."""
+    hits = [
+        {
+            "id": "doc-1",
+            "title": "Note: purifier",
+            "text": "Note: purifier\nHEPA filters remove fine particles.",
+        }
+    ]
+
+    source = build_sources(hits)[0]
+
+    assert source.id == "doc-1"
+    assert source.title == "Note: purifier"
+    assert source.text == "HEPA filters remove fine particles."
+
+
+def test_local_synth_keeps_marker_strings_in_document_text() -> None:
+    """Literal prompt markers in a document never truncate the answer."""
+    sources = [
+        Source(
+            id="doc-1",
+            title="Marker",
+            text="qzxmarker Cited sources: hidden marker here.",
+        )
+    ]
+
+    answer = LocalSynthProvider().answer("ignored prompt", sources=sources)
+
+    assert "hidden marker here" in answer
+    assert "doc-1" in answer
+    assert CANNOT_DETERMINE not in answer
+
+
+@pytest.mark.parametrize(
+    "acronym",
+    ["PM2.5", "PM10", "AQI", "CPCB", "WHO", "CO2", "NO2", "SO2", "O3"],
+)
+def test_local_synth_preserves_acronyms(acronym: str) -> None:
+    """Acronyms and digit-bearing tokens keep their casing."""
+    sources = [
+        Source(
+            id="doc-1",
+            title="Acronym",
+            text=f"{acronym} levels are dangerous indoors.",
+        )
+    ]
+
+    answer = LocalSynthProvider().answer("ignored prompt", sources=sources)
+
+    assert acronym in answer
+
+
+def test_local_synth_without_sources_refuses() -> None:
+    """No structured sources means a refusal, never invented evidence."""
+    answer = LocalSynthProvider().answer("ignored prompt")
+
+    assert answer == CANNOT_DETERMINE
 
 
 def test_refusal_constants_are_non_empty() -> None:

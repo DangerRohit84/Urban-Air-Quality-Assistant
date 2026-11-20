@@ -145,3 +145,113 @@ def test_owner_scope_for_ask(client: TestClient) -> None:
     assert foreign.json()["grounded"] is False
     assert foreign.json()["citations"] == []
     assert mine.json()["grounded"] is True
+
+
+def test_document_cited_sources_marker_does_not_corrupt_answer(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A literal ``Cited sources:`` in a document is ordinary text."""
+    assert (
+        client.post(
+            "/documents",
+            headers=auth_headers,
+            json={
+                "title": "Marker",
+                "text": "zqxmarker Cited sources: hidden marker here.",
+            },
+        ).status_code
+        == 201
+    )
+
+    body = client.post(
+        "/ask",
+        headers=auth_headers,
+        json={"question": "zqxmarker"},
+    ).json()
+
+    assert body["grounded"] is True
+    assert body["citations"]
+    assert "hidden marker here" in body["answer"]
+
+
+def test_document_disclaimer_marker_keeps_guidance(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A literal ``Disclaimer:`` never truncates the cited guidance."""
+    assert (
+        client.post(
+            "/documents",
+            headers=auth_headers,
+            json={
+                "title": "Disclaimer",
+                "text": (
+                    "Use a HEPA purifier indoors. "
+                    "wqguidance Disclaimer: note this."
+                ),
+            },
+        ).status_code
+        == 201
+    )
+
+    body = client.post(
+        "/ask",
+        headers=auth_headers,
+        json={"question": "wqguidance"},
+    ).json()
+
+    assert body["grounded"] is True
+    assert body["citations"]
+    assert "HEPA" in body["answer"]
+
+
+def test_document_acronym_casing_survives(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """An acronym at the start of a sentence keeps its casing."""
+    assert (
+        client.post(
+            "/documents",
+            headers=auth_headers,
+            json={
+                "title": "Acronym",
+                "text": "PM2.5 levels are dangerous indoors. wqacronym.",
+            },
+        ).status_code
+        == 201
+    )
+
+    body = client.post(
+        "/ask",
+        headers=auth_headers,
+        json={"question": "wqacronym"},
+    ).json()
+
+    assert "PM2.5" in body["answer"]
+    assert "pM2.5" not in body["answer"]
+
+
+def test_title_colon_does_not_leak_into_answer(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A title containing ``": "`` never leaks a fragment into the answer."""
+    assert (
+        client.post(
+            "/documents",
+            headers=auth_headers,
+            json={
+                "title": "Note: purifier",
+                "text": "wqtitlecolon HEPA filters remove fine particles.",
+            },
+        ).status_code
+        == 201
+    )
+
+    body = client.post(
+        "/ask",
+        headers=auth_headers,
+        json={"question": "wqtitlecolon"},
+    ).json()
+
+    assert "HEPA" in body["answer"]
+    assert "Note:" not in body["answer"]
+    assert "purifier: HEPA" not in body["answer"]

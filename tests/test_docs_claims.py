@@ -14,7 +14,7 @@ import tomllib
 from pathlib import Path
 
 from backend.app.llm.local_synth import LocalSynthProvider
-from backend.app.prompting import DISCLAIMER
+from backend.app.prompting import DISCLAIMER, Source
 
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
@@ -46,6 +46,14 @@ PROMPT = (
     "[seed-002] Ventilation: Open windows at night.\n\n"
     "Disclaimer: general information.\n"
 )
+SOURCES = [
+    Source(
+        id="seed-001",
+        title="Purifiers",
+        text="A HEPA purifier removes fine particles.",
+    ),
+    Source(id="seed-002", title="Ventilation", text="Open windows at night."),
+]
 
 
 def _documented_paths(text: str) -> list[str]:
@@ -182,7 +190,7 @@ def test_remote_providers_pin_temperature_zero() -> None:
 def test_plain_rendering_is_shorter_than_standard() -> None:
     """The plain-language mode shortens the composed answer."""
     provider = LocalSynthProvider()
-    standard = provider.answer(PROMPT)
-    plain = provider.answer(PROMPT, plain_language=True)
+    standard = provider.answer(PROMPT, sources=SOURCES)
+    plain = provider.answer(PROMPT, plain_language=True, sources=SOURCES)
 
     assert len(plain) < len(standard)

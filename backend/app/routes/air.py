@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -20,35 +21,65 @@ from backend.app.schemas.air import (
 )
 from backend.app.storage.store import get_repo
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["air"])
 
 NOT_CONFIGURED = "not_configured"
+OFFLINE = "offline"
 
 
 def _now() -> str:
-    """Return the current UTC timestamp in ISO-8601.
-
-    Returns:
-        The formatted timestamp.
-    """
+    """Return the current UTC timestamp in ISO-8601."""
     return datetime.now(UTC).isoformat()
 
 
 def get_live_reading(city: cities.City) -> LiveAqiReading | None:
-    """Fetch a live reading, or None when unconfigured or failed.
-
-    Args:
-        city: The resolved city.
-
-    Returns:
-        The reading, or None when the provider is unavailable.
-    """
+    """Fetch a live reading, or None when unconfigured or failed."""
     if not settings.aqi_api_key:
         return None
     try:
         return OpenWeatherProvider(settings.aqi_api_key).fetch(city)
-    except Exception:  # noqa: BLE001 - any provider failure degrades offline
+    except Exception as exc:  # noqa: BLE001 - any failure degrades offline
+        logger.warning(
+            "live AQI provider failed (%s); serving the fallback",
+            type(exc).__name__,
+        )
         return None
+
+
+def _fallback(city: cities.City, user_id: str, source: str) -> AirLiveResponse:
+    """Build the saved-context or empty fallback response."""
+    ctx = get_repo().get_aqi_context(user_id)
+    if ctx is not None and ctx.city.strip().casefold() == city.name.casefold():
+        note = (
+            "live AQI provider unavailable"
+            if source == OFFLINE
+            else "live AQI not configured"
+        )
+        return AirLiveResponse(
+            city=city.name,
+            source=source,
+            band=ctx.band,
+            value=ctx.value,
+            pm25=ctx.pm25,
+            pm10=ctx.pm10,
+            fallback=f"{note}; showing your saved band",
+        )
+    fallback = (
+        "live AQI provider unavailable; POST /air/context with your band"
+        if source == OFFLINE
+        else "set AQI_API_KEY or POST /air/context with your band"
+    )
+    return AirLiveResponse(
+        city=city.name,
+        source=source,
+        band="",
+        value=None,
+        pm25=None,
+        pm10=None,
+        fallback=fallback,
+    )
 
 
 @router.post("/air/context", response_model=AirContextResponse)
@@ -56,18 +87,7 @@ def save_context(
     payload: AirContextIn,
     user_id: Annotated[str, Depends(require_user_id)],
 ) -> AirContextResponse:
-    """Store the caller's air-quality context.
-
-    Args:
-        payload: The validated context fields.
-        user_id: The verified owner id.
-
-    Returns:
-        The stored context.
-
-    Raises:
-        HTTPException: 422 when the city is unknown.
-    """
+    """Store the caller's air-quality context."""
     city = cities.resolve_city(payload.city)
     if city is None:
         raise HTTPException(status_code=422, detail="unknown city")
@@ -91,18 +111,7 @@ def get_air(
     q: str,
     user_id: Annotated[str, Depends(require_user_id)],
 ) -> AirLiveResponse:
-    """Return live AQI, else the caller's saved context.
-
-    Args:
-        q: The city name.
-        user_id: The verified owner id.
-
-    Returns:
-        The reading payload.
-
-    Raises:
-        HTTPException: 404 when the city is unknown.
-    """
+    """Return live AQI, else the caller's saved context."""
     city = cities.resolve_city(q)
     if city is None:
         raise HTTPException(status_code=404, detail="unknown city")
@@ -118,23 +127,5 @@ def get_air(
             fallback="",
             native_index=live.native_index,
         )
-    ctx = get_repo().get_aqi_context(user_id)
-    if ctx is not None and ctx.city.strip().casefold() == city.name.casefold():
-        return AirLiveResponse(
-            city=city.name,
-            source=NOT_CONFIGURED,
-            band=ctx.band,
-            value=ctx.value,
-            pm25=ctx.pm25,
-            pm10=ctx.pm10,
-            fallback="live AQI not configured; showing your saved band",
-        )
-    return AirLiveResponse(
-        city=city.name,
-        source=NOT_CONFIGURED,
-        band="",
-        value=None,
-        pm25=None,
-        pm10=None,
-        fallback="set AQI_API_KEY or POST /air/context with your band",
-    )
+    source = OFFLINE if settings.aqi_api_key else NOT_CONFIGURED
+    return _fallback(city, user_id, source)
