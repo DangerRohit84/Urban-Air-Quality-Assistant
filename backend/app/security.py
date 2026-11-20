@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 
-MAX_DOCUMENT_CHARS = 2000
+# Large enough for ordinary multi-page PDFs while keeping chunking and the
+# 1 MiB JSON body cap bounded.
+MAX_DOCUMENT_CHARS = 50_000
 
 # Control characters only: the frontend writes through textContent, so quotes,
 # ampersands and angle brackets are data, not markup (R&D, M&M's survive).

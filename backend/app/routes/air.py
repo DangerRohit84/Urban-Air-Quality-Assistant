@@ -116,6 +116,7 @@ def get_air(
             pm25=live.pm25,
             pm10=live.pm10,
             fallback="",
+            native_index=live.native_index,
         )
     ctx = get_repo().get_aqi_context(user_id)
     if ctx is not None and ctx.city.strip().casefold() == city.name.casefold():

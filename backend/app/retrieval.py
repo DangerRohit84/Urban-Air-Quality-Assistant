@@ -24,11 +24,12 @@ DEFAULT_TOP_K = 5
 #   * MIN_RELEVANCE - a TF-IDF cosine floor. 0.15 sits below the weakest
 #     legitimate seed query observed (~0.17) and above matches that share only
 #     a negligible slice of the query's term weight.
-#   * MIN_COVERAGE - at least 30% of the query's non-stop-word tokens must
-#     appear in the hit's text/title. This generalises "at least one content
-#     token": a one- or two-word query still needs a single match, while a long
-#     natural question such as the Naples repro (1 of 4 content tokens = 0.25)
-#     is refused instead of grounded on one incidental word.
+#   * MIN_COVERAGE - at least 30% of the query's content tokens must appear in
+#     the hit's text/title. Content tokens exclude stop words, generic filler
+#     ("best", "top", ...) and are lightly normalized ("children" -> "child",
+#     "smoggy" -> "smog", plurals -> singular). This generalises "at least one
+#     content token": a one- or two-word query still needs a single match,
+#     while "best pizza in Naples" now has no content-token match at all.
 MIN_RELEVANCE = 0.15
 MIN_COVERAGE = 0.3
 

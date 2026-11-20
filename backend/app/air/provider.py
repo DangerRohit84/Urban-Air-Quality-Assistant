@@ -18,6 +18,7 @@ class LiveAqiReading:
     pm25: float | None
     pm10: float | None
     source: str = "live"
+    native_index: int | None = None
 
 
 class LiveAqiProvider(Protocol):

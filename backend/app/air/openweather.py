@@ -7,7 +7,7 @@ import urllib.request
 from typing import Protocol, cast
 
 from backend.app.air.provider import LiveAqiReading
-from backend.app.aqi import band_from_openweather_index
+from backend.app.aqi import band_from_openweather_index, band_midpoint
 from backend.app.cities import City
 
 DEFAULT_BASE_URL = "https://api.openweathermap.org/data/2.5/air-pollution"
@@ -83,9 +83,13 @@ class OpenWeatherProvider:
         components = entry.get("components", {})
         pm25_raw = components.get("pm2_5")
         pm10_raw = components.get("pm10")
+        band = band_from_openweather_index(index)
         return LiveAqiReading(
-            band=band_from_openweather_index(index),
-            value=index,
+            band=band,
+            # ``value`` must agree with ``band``: emit a CPCB-equivalent
+            # value (the band midpoint), not the native 1-5 index.
+            value=band_midpoint(band),
             pm25=float(pm25_raw) if pm25_raw is not None else None,
             pm10=float(pm10_raw) if pm10_raw is not None else None,
+            native_index=index,
         )

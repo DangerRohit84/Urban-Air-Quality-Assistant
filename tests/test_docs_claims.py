@@ -175,8 +175,8 @@ def test_disclaimer_appears_verbatim() -> None:
 
 def test_remote_providers_pin_temperature_zero() -> None:
     """Both remote providers request deterministic output."""
-    assert "temperature=0" in GEMINI.read_text(encoding="utf-8")
-    assert "temperature=0" in OPENAI.read_text(encoding="utf-8")
+    assert '"temperature": 0' in GEMINI.read_text(encoding="utf-8")
+    assert '"temperature": 0' in OPENAI.read_text(encoding="utf-8")
 
 
 def test_plain_rendering_is_shorter_than_standard() -> None:

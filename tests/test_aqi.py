@@ -6,9 +6,11 @@ import pytest
 
 from backend.app.aqi import (
     CPCB_BANDS,
+    Band,
     band_for_value,
     band_from_openweather_index,
     band_from_pm25,
+    band_midpoint,
 )
 from backend.app.cities import City, resolve_city
 
@@ -90,6 +92,20 @@ def test_band_from_openweather_index_invalid(index: int) -> None:
     """Out-of-range indices raise."""
     with pytest.raises(ValueError):
         band_from_openweather_index(index)
+
+
+@pytest.mark.parametrize("band", CPCB_BANDS)
+def test_band_midpoint_is_inside_its_band(band: Band) -> None:
+    """Every midpoint converts back to the same band."""
+    midpoint = band_midpoint(band)
+
+    assert band.low <= midpoint <= band.high
+    assert band_for_value(midpoint) is band
+
+
+def test_poor_midpoint_is_250() -> None:
+    """The OpenWeather index-4 band maps to a CPCB Poor value."""
+    assert band_midpoint(band_from_openweather_index(4)) == 250
 
 
 def test_resolve_city_is_case_and_space_insensitive() -> None:

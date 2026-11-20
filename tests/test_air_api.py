@@ -77,9 +77,10 @@ def test_live_reading_is_used_when_key_set(
     monkeypatch.setattr(settings, "aqi_api_key", "key")
     reading = LiveAqiReading(
         band=band_from_openweather_index(4),
-        value=4,
+        value=250,
         pm25=150.0,
         pm10=200.0,
+        native_index=4,
     )
     monkeypatch.setattr(
         "backend.app.routes.air.OpenWeatherProvider",
@@ -92,6 +93,8 @@ def test_live_reading_is_used_when_key_set(
     body = response.json()
     assert body["source"] == "live"
     assert body["band"] == "Poor"
+    assert body["value"] == 250
+    assert body["native_index"] == 4
     assert body["pm25"] == 150.0
 
 
@@ -249,6 +252,8 @@ def test_openweather_adapter_parses_payload() -> None:
     reading = provider.fetch(resolve_city("Delhi"))
 
     assert reading.band.name == "Poor"
+    assert reading.value == 250
+    assert reading.native_index == 4
     assert reading.pm25 == 150.0
     assert reading.pm10 == 210.5
     assert reading.source == "live"

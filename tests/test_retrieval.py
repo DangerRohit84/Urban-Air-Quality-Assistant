@@ -84,6 +84,16 @@ def test_out_of_domain_natural_question_returns_empty() -> None:
     assert retrieval.search("What is the best pizza topping in Naples?") == []
 
 
+def test_short_out_of_domain_questions_return_empty() -> None:
+    """Three-token out-of-domain questions never ground on filler words."""
+    for query in (
+        "best pizza in Naples",
+        "who won the 2018 world cup",
+        "write me a poem about the sea",
+    ):
+        assert retrieval.search(query) == [], query
+
+
 def test_out_of_domain_technical_question_returns_empty() -> None:
     """A technical out-of-domain question has no corpus support."""
     assert retrieval.search("quantum entanglement") == []
@@ -95,8 +105,24 @@ def test_legitimate_queries_return_hits() -> None:
         "indoor air purifier",
         "how do I reduce smog exposure",
         "safe AQI for children",
+        "how do I protect my child on a smoggy day",
     ):
         assert retrieval.search(query), query
+
+
+def test_light_normalization_matches_irregular_variants() -> None:
+    """Aliases and plurals count as matches for coverage."""
+    document = {
+        "id": "seed-006",
+        "title": "Protecting children",
+        "text": "Children are vulnerable on smog days.",
+    }
+
+    coverage = retrieval_fallback._coverage(
+        "how do I protect my child on a smoggy day", document
+    )
+
+    assert coverage == 0.75
 
 
 def test_fallback_path_enforces_same_rule(monkeypatch: object) -> None:

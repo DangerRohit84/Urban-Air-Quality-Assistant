@@ -19,9 +19,12 @@ storage backend is substitutable (dependency inversion).
 
 Integrations sit behind provider ports: `backend/app/llm/factory.py` selects
 Gemini, an OpenAI-compatible endpoint, or the deterministic local composer, and
-`backend/app/air/provider.py` abstracts the live AQI adapter. Offline local
-synthesis is the default; remote keys are optional. The frontend is static
-HTML/CSS/JS served by FastAPI and calls the JSON API with a bearer token.
+`backend/app/air/provider.py` abstracts the live AQI adapter. Remote providers
+use the standard library's HTTP client (no vendor SDK packages) and fall back
+to local synthesis on timeout or a malformed response, so `/ask` never 500s.
+Offline local synthesis is the default; remote keys are optional. The frontend
+is static HTML/CSS/JS served by FastAPI and calls the JSON API with a bearer
+token.
 
 ## Quickstart
 
@@ -48,14 +51,18 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 - Repeat searches hit the TF-IDF cache (54 hits / 1 miss in the sample, > 95%).
 - Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 93%.
 - Retrieval relevance: a hit grounds a question only when its TF-IDF cosine is
-  at least `0.15` **and** at least `30%` of the query's non-stop-word tokens
-  appear in the hit's text/title. A natural out-of-domain question that shares
-  one incidental word (for example a pizza question matching "best") is refused
-  with `grounded: false` and no citations.
+  at least `0.15` **and** at least `30%` of the query's content tokens appear
+  in the hit's text/title. Content tokens exclude stop words and generic filler
+  ("best", "top", ...), and light normalization maps "children" -> "child",
+  "smoggy" -> "smog" and plurals to singular. An out-of-domain question with no
+  content-token match is refused with `grounded: false` and no citations.
 - Every backend module stays under 150 lines (enforced by a test).
 - Upload cap: 10 MiB (`MAX_UPLOAD_BYTES`); documents per owner: 10
   (`MAX_DOCUMENTS`). Ordinary request bodies are capped at 1 MiB; the upload
   route gets the 10 MiB cap plus 1 MiB of multipart headroom.
+- Document text cap: 50,000 characters (`MAX_DOCUMENT_CHARS`) after
+  sanitization, applied to manual text and extracted PDF text alike; longer
+  input returns 422 instead of being silently truncated.
 - Rate limit: 200 requests/minute per client (`RATE_LIMIT_PER_MIN`), at most
   10,000 buckets (`MAX_RATE_BUCKETS`). `/health` is exempt so probes cannot
   exhaust a user's budget. Set `TRUST_PROXY=true` behind a trusted reverse
@@ -65,7 +72,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **305 tests** collected by `pytest --collect-only`; the quality
+Test suite: **321 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -86,7 +93,8 @@ Backend modules under `backend/app/`:
   `rate_limiter.py`.
 - `auth/` (`passwords.py`, `tokens.py`, `service.py`, `dependencies.py`),
   `llm/` (`base.py`, `factory.py`, `local_synth.py`, `gemini.py`,
-  `openai_compat.py`), `air/` (`provider.py`, `openweather.py`).
+  `openai_compat.py`, `http_json.py`), `air/` (`provider.py`,
+  `openweather.py`).
 - `storage/` (`protocol.py`, `schema.py`, `migrations.py`, `sqlite_base.py`,
   `sqlite_rows.py`, `memory.py`, `sqlite_store.py`, `store.py`).
 - `routes/` (`system.py`, `auth.py`, `profile.py`, `air.py`, `plans.py`,
@@ -165,6 +173,11 @@ Test modules under `tests/`:
 | DELETE | `/documents/{id}` | yes | Delete an owned document. |
 | POST | `/documents/upload` | yes | Upload and parse a PDF. |
 | GET | `/export?format=` | yes | Export the plan as Markdown or JSON. |
+
+`GET /air` returns a CPCB `band` with a `value` inside that band. For a live
+OpenWeather reading the adapter reports the band midpoint (for example Poor ->
+250) and keeps the raw 1-5 provider index in `native_index`; saved-context and
+unconfigured responses leave `native_index` null.
 
 ## Deploy
 

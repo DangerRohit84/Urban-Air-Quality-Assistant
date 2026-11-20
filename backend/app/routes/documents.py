@@ -38,6 +38,9 @@ def store_document(
         HTTPException: 409 when the document limit is reached, 422 when the
             text exceeds ``MAX_DOCUMENT_CHARS``.
     """
+    # Keep one character past the cap so the explicit 422 wins over silent
+    # truncation, and sanitize PDF text on the same path as manual text.
+    text = sanitize_text(text, MAX_DOCUMENT_CHARS + 1)
     if len(text) > MAX_DOCUMENT_CHARS:
         raise HTTPException(
             status_code=422,
@@ -79,7 +82,7 @@ def create_document(
     return store_document(
         user_id,
         sanitize_text(payload.title, 200),
-        sanitize_text(payload.text),
+        payload.text,
         "corpus",
         "user",
     )

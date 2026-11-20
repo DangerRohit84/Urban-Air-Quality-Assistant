@@ -81,3 +81,4 @@ class AirLiveResponse(BaseModel):
     pm25: float | None
     pm10: float | None
     fallback: str
+    native_index: int | None = None

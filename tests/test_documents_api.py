@@ -253,13 +253,34 @@ def test_oversize_document_text_is_422(
     )
 
     assert response.status_code == 422
+    assert str(MAX_DOCUMENT_CHARS) in response.json()["detail"]
+
+
+def test_long_pdf_text_is_indexed(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A multi-page-sized PDF text is accepted and becomes searchable."""
+    body = ("zyloflux indoor filter guidance. " * 200)[:5000]
+
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("long.pdf", _pdf_bytes(body), "application/pdf")},
+    )
+
+    assert response.status_code == 201
+    assert len(response.json()["text"]) == 5000
+    assert response.json()["chunks"]
+
+    user_id = client.get("/auth/me", headers=auth_headers).json()["id"]
+    assert retrieval.search("zyloflux", owner_id=user_id)
 
 
 def test_boundary_length_document_preserves_markup_characters(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
     """A maximal document keeps ``&``, quotes and angle brackets intact."""
-    text = ("R&D M&M's <keep> \"quoted\" & more. " * 60)[:MAX_DOCUMENT_CHARS]
+    text = ("R&D M&M's <keep> \"quoted\" & more. " * 1600)[:MAX_DOCUMENT_CHARS]
     if text.endswith(" "):
         text = text[:-1] + "."
 

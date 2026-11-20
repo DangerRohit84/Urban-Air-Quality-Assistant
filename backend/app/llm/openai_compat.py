@@ -1,8 +1,27 @@
-"""OpenAI-compatible provider with a lazy SDK import."""
+"""OpenAI-compatible provider using a dependency-free HTTP call."""
 
 from __future__ import annotations
 
+import logging
+
 from backend.app.config import settings
+from backend.app.llm.http_json import post_json
+from backend.app.llm.local_synth import LocalSynthProvider
+
+logger = logging.getLogger(__name__)
+
+
+def _local(prompt: str, plain_language: bool) -> str:
+    """Return the deterministic local answer.
+
+    Args:
+        prompt: The grounded prompt.
+        plain_language: Whether to request plain language.
+
+    Returns:
+        The local answer.
+    """
+    return LocalSynthProvider().answer(prompt, plain_language=plain_language)
 
 
 class OpenAICompatProvider:
@@ -28,21 +47,36 @@ class OpenAICompatProvider:
         self.model = model or settings.openai_model
 
     def answer(self, prompt: str, *, plain_language: bool = False) -> str:
-        """Answer via the compatible endpoint.
+        """Answer via the compatible endpoint, or fall back to local synthesis.
 
         Args:
             prompt: The grounded prompt.
             plain_language: Whether to request plain language.
 
         Returns:
-            The generated text.
+            The generated text, or a cited local answer when the request fails.
         """
-        from openai import OpenAI
-
-        client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-        )
-        return response.choices[0].message.content or ""
+        if not self.api_key:
+            return _local(prompt, plain_language)
+        url = f"{self.base_url.rstrip('/')}/chat/completions"
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        try:
+            data = post_json(url, payload, headers)
+            text = data["choices"][0]["message"]["content"]
+        except Exception as exc:  # noqa: BLE001 - remote failures degrade locally
+            logger.warning(
+                "OpenAI-compatible request failed (%s); using local synthesis",
+                type(exc).__name__,
+            )
+            return _local(prompt, plain_language)
+        if not isinstance(text, str) or not text.strip():
+            logger.warning(
+                "OpenAI-compatible endpoint returned no text; using local synthesis"
+            )
+            return _local(prompt, plain_language)
+        return text

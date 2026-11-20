@@ -77,6 +77,18 @@ def band_for_value(value: int) -> Band:
     return CPCB_BANDS[-1]
 
 
+def band_midpoint(band: Band) -> int:
+    """Return a representative CPCB value inside ``band``.
+
+    Args:
+        band: The band.
+
+    Returns:
+        The integer midpoint of the band's range.
+    """
+    return (band.low + band.high) // 2
+
+
 def band_from_pm25(pm25: float) -> Band:
     """Return the CPCB band for a 24-hour PM2.5 concentration.
 
