@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -9,7 +10,9 @@ from fastapi.testclient import TestClient
 
 from backend.app import retrieval
 from backend.app.config import settings
+from backend.app.pdf_text import MAX_PAGES
 from backend.app.security import MAX_DOCUMENT_CHARS
+from tests.pdf_fixtures import flate_bomb_pdf, many_pages_pdf
 
 
 def _pdf_bytes(text: str) -> bytes:
@@ -183,6 +186,42 @@ def test_pdf_without_extractable_text_is_422(
 
     assert response.status_code == 422
     assert response.json()["detail"] == "document text must not be empty"
+
+
+def test_pdf_flate_bomb_is_422_quickly(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A decompression bomb is rejected as too complex without hanging."""
+    started = time.monotonic()
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("bomb.pdf", flate_bomb_pdf(), "application/pdf")},
+    )
+
+    assert response.status_code == 422
+    assert "too complex" in response.json()["detail"]
+    assert time.monotonic() - started < 3.0
+
+
+def test_pdf_over_page_limit_is_422(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A PDF over the page limit is rejected with a clear message."""
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={
+            "file": (
+                "many-pages.pdf",
+                many_pages_pdf(MAX_PAGES + 1),
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 422
+    assert "pages" in response.json()["detail"]
 
 
 def test_upload_searchable_pdf(

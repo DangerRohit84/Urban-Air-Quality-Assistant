@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend.app.auth.dependencies import require_user_id
 from backend.app.config import settings
-from backend.app.pdf_text import extract_pdf_text
+from backend.app.pdf_text import PdfTooComplexError, extract_pdf_text
 from backend.app.routes.documents import store_document
 from backend.app.schemas.documents import DocumentResponse
 from backend.app.security import sanitize_filename
@@ -34,8 +34,8 @@ async def upload_document(
 
     Raises:
         HTTPException: 400 on a bad upload, 409 on the limit, 413 on oversize,
-            422 when the extracted text is empty or exceeds
-            ``MAX_DOCUMENT_CHARS``.
+            422 when the PDF is too complex or the extracted text is empty or
+            exceeds ``MAX_DOCUMENT_CHARS``.
     """
     raw = await file.read(settings.max_upload_bytes + 1)
     if len(raw) > settings.max_upload_bytes:
@@ -48,6 +48,8 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     try:
         text = await asyncio.to_thread(extract_pdf_text, raw)
+    except PdfTooComplexError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - malformed PDFs are client errors
         raise HTTPException(status_code=400, detail="could not parse PDF") from exc
     return store_document(

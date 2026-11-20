@@ -28,12 +28,15 @@ Every variable read by `backend/app/config.py`:
 | `LOG_LEVEL` | `info` | Log level. |
 
 Remote LLM providers call their HTTP APIs with the standard library, so no
-vendor SDK packages are required. A timeout, HTTP error or malformed response
-falls back to `local_synth`, and `/ask` still returns a cited answer.
+vendor SDK packages are required. A timeout, HTTP error, redirect, oversized
+response or malformed response falls back to `local_synth`, and `/ask` still
+returns a cited answer.
 
 Uploaded PDF text is capped at 50,000 characters after sanitization
 (`MAX_DOCUMENT_CHARS`); longer extracted text returns 422 rather than being
-silently truncated.
+silently truncated. PDFs over 20 pages, or extraction that exceeds the
+4-second budget or 1 MB decompressed-stream cap, return 422 instead of
+consuming unbounded worker resources.
 
 ## Local verification
 

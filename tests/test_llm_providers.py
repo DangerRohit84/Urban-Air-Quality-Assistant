@@ -9,6 +9,7 @@ from backend.app.llm.base import EchoProvider
 from backend.app.llm.factory import build_provider
 from backend.app.llm.local_synth import LocalSynthProvider
 from backend.app.prompting import Source
+from tests.http_server import serve
 
 PROMPT = (
     "User question:\nWhat helps?\n\nCited sources:\n"
@@ -194,6 +195,71 @@ def test_openai_compat_empty_text_falls_back(monkeypatch: object) -> None:
     answer = openai_compat.OpenAICompatProvider(
         api_key="secret", base_url="https://example.test/v1", model="model"
     ).answer(PROMPT, sources=SOURCES)
+
+    assert "Sources:" in answer
+
+
+def test_openai_compat_redirect_falls_back_without_forwarding_auth() -> None:
+    """A redirect degrades locally and never forwards the bearer token."""
+    from backend.app.llm.openai_compat import OpenAICompatProvider
+
+    with serve(302, b"", location="/capture") as server:
+        answer = OpenAICompatProvider(
+            api_key="secret", base_url=server.base_url, model="model"
+        ).answer(PROMPT, sources=SOURCES)
+
+    assert "Sources:" in answer
+    assert [hit.path for hit in server.hits] == ["/chat/completions"]
+    assert server.hits[0].authorization == "Bearer secret"
+
+
+def test_gemini_redirect_falls_back_without_forwarding_key(
+    monkeypatch: object,
+) -> None:
+    """A Gemini redirect degrades locally and never reaches the target."""
+    from backend.app.llm import gemini
+
+    with serve(302, b"", location="/capture") as server:
+        monkeypatch.setattr(
+            gemini, "GEMINI_BASE_URL", f"{server.base_url}/v1beta/models"
+        )
+        answer = gemini.GeminiProvider(api_key="secret", model="m").answer(
+            PROMPT, sources=SOURCES
+        )
+
+    assert "Sources:" in answer
+    assert len(server.hits) == 1
+    assert server.hits[0].path.startswith("/v1beta/models/m:generateContent")
+
+
+def test_openai_compat_oversized_response_falls_back(
+    monkeypatch: object,
+) -> None:
+    """An oversized response degrades to the cited local answer."""
+    from backend.app.llm import openai_compat
+
+    def too_large(url: str, payload: dict, headers: dict) -> dict:
+        raise ValueError("LLM response too large")
+
+    monkeypatch.setattr(openai_compat, "post_json", too_large)
+    answer = openai_compat.OpenAICompatProvider(
+        api_key="secret", base_url="https://example.test/v1", model="model"
+    ).answer(PROMPT, sources=SOURCES)
+
+    assert "Sources:" in answer
+
+
+def test_gemini_oversized_response_falls_back(monkeypatch: object) -> None:
+    """A Gemini response above the cap degrades locally."""
+    from backend.app.llm import gemini
+
+    def too_large(url: str, payload: dict, headers: dict) -> dict:
+        raise ValueError("LLM response too large")
+
+    monkeypatch.setattr(gemini, "post_json", too_large)
+    answer = gemini.GeminiProvider(api_key="secret", model="m").answer(
+        PROMPT, sources=SOURCES
+    )
 
     assert "Sources:" in answer
 

@@ -27,7 +27,10 @@ than oracular.
   cached dummy hash so timing does not reveal account existence.
 - Request bodies are capped at 1 MiB (uploads get the configured cap plus
   multipart headroom), validation errors never echo submitted input, and
-  retrieved sources are escaped inside `<source>` delimiters.
+  retrieved sources are escaped inside `<source>` delimiters. PDF extraction
+  is bounded to 20 pages, a 4-second budget and a 1 MB decompressed-stream
+  cap; larger or bomb-like PDFs return 422. Remote LLM calls do not follow
+  redirects and cap responses at 1 MiB, falling back to local synthesis.
 - `/health` is exempt from rate limiting, and `TRUST_PROXY` enables
   rightmost-hop-aware buckets behind a trusted proxy.
 - Disclaimer: This guidance is general information, not medical advice.
@@ -50,7 +53,7 @@ backend and the model provider can be swapped without touching the routes.
 
 ## Tests
 
-The suite collects **343 tests** (`pytest --collect-only`), including
+The suite collects **356 tests** (`pytest --collect-only`), including
 accessibility, security-boundary, efficiency and docs-claims tests.
 
 ## What to link

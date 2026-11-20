@@ -21,7 +21,8 @@ Integrations sit behind provider ports: `backend/app/llm/factory.py` selects
 Gemini, an OpenAI-compatible endpoint, or the deterministic local composer, and
 `backend/app/air/provider.py` abstracts the live AQI adapter. Remote providers
 use the standard library's HTTP client (no vendor SDK packages) and fall back
-to local synthesis on timeout or a malformed response, so `/ask` never 500s.
+to local synthesis on timeout, redirect, oversized response or a malformed
+response, so `/ask` never 500s.
 Offline local synthesis is the default; remote keys are optional. The frontend
 is static HTML/CSS/JS served by FastAPI and calls the JSON API with a bearer
 token.
@@ -74,7 +75,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **343 tests** collected by `pytest --collect-only`; the quality
+Test suite: **356 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -142,7 +143,8 @@ Test modules under `tests/`:
 - `/health` exposes the provider, cache stats, store counts and uptime.
 - TF-IDF is fitted once per corpus and cached; document changes invalidate it.
 - Uploads are capped and parsed in a worker thread (`asyncio.to_thread`).
-- PDF parsing is bounded to a fixed page count.
+- PDF parsing is bounded to 20 pages, a 4-second extraction budget and a 1 MB
+  decompressed-stream cap; larger or bomb-like PDFs return 422.
 
 ## Accessibility
 
