@@ -34,7 +34,8 @@ async def upload_document(
 
     Raises:
         HTTPException: 400 on a bad upload, 409 on the limit, 413 on oversize,
-            422 when the extracted text exceeds ``MAX_DOCUMENT_CHARS``.
+            422 when the extracted text is empty or exceeds
+            ``MAX_DOCUMENT_CHARS``.
     """
     raw = await file.read(settings.max_upload_bytes + 1)
     if len(raw) > settings.max_upload_bytes:

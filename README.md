@@ -62,7 +62,9 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
   route gets the 10 MiB cap plus 1 MiB of multipart headroom.
 - Document text cap: 50,000 characters (`MAX_DOCUMENT_CHARS`) after
   sanitization, applied to manual text and extracted PDF text alike; longer
-  input returns 422 instead of being silently truncated.
+  input returns 422 instead of being silently truncated. Empty or
+  whitespace-only text (including a PDF with no extractable text) returns
+  422 with `document text must not be empty`.
 - Rate limit: 200 requests/minute per client (`RATE_LIMIT_PER_MIN`), at most
   10,000 buckets (`MAX_RATE_BUCKETS`). `/health` is exempt so probes cannot
   exhaust a user's budget. Set `TRUST_PROXY=true` behind a trusted reverse
@@ -72,7 +74,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **339 tests** collected by `pytest --collect-only`; the quality
+Test suite: **343 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash

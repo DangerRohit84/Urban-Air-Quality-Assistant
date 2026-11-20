@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app import retrieval
@@ -143,6 +144,45 @@ def test_empty_title_or_text_is_422(
 
     assert title.status_code == 422
     assert text.status_code == 422
+
+
+def test_empty_text_is_422_with_clear_message(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """An empty body is rejected with the documented message."""
+    response = client.post(
+        "/documents", headers=auth_headers, json={"title": "Empty", "text": ""}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "document text must not be empty"
+
+
+@pytest.mark.parametrize("text", ["   ", "\t\n  "])
+def test_whitespace_only_text_is_422(
+    client: TestClient, auth_headers: dict[str, str], text: str
+) -> None:
+    """Whitespace-only bodies sanitize to empty and are rejected."""
+    response = client.post(
+        "/documents", headers=auth_headers, json={"title": "Blank", "text": text}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "document text must not be empty"
+
+
+def test_pdf_without_extractable_text_is_422(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A PDF whose extraction yields no text is rejected."""
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("blank.pdf", _pdf_bytes(""), "application/pdf")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "document text must not be empty"
 
 
 def test_upload_searchable_pdf(

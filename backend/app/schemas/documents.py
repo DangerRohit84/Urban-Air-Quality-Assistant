@@ -9,9 +9,10 @@ class DocumentIn(BaseModel):
     """Payload accepted by ``POST /documents``."""
 
     title: str = Field(min_length=1, max_length=200)
-    # The route enforces MAX_DOCUMENT_CHARS so an over-limit body gets the
-    # documented 422 message instead of a generic schema error.
-    text: str = Field(min_length=1)
+    # The route enforces non-empty text and MAX_DOCUMENT_CHARS so an empty or
+    # over-limit body gets the documented 422 message instead of a generic
+    # schema error.
+    text: str
 
 
 class DocumentResponse(BaseModel):
