@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -60,6 +61,33 @@ def test_verify_accepts_legacy_120k_hash() -> None:
 def test_verify_rejects_wrong_password_for_legacy_hash() -> None:
     """A wrong password does not verify against a legacy hash."""
     assert verify_password("Wrong1", _legacy_hash("Password1")) is False
+
+
+def _fastest_verify(password: str, stored: str, samples: int = 3) -> float:
+    """Return the fastest of ``samples`` verification wall-clock times.
+
+    Args:
+        password: The plaintext candidate.
+        stored: The stored hash string.
+        samples: How many timings to collect.
+
+    Returns:
+        The smallest observed duration in seconds.
+    """
+    timings = []
+    for _ in range(samples):
+        started = time.perf_counter()
+        verify_password(password, stored)
+        timings.append(time.perf_counter() - started)
+    return min(timings)
+
+
+def test_failed_legacy_login_timing_is_normalized() -> None:
+    """A failed legacy verification costs roughly the current work factor."""
+    legacy_time = _fastest_verify("Wrong1", _legacy_hash("Password1"))
+    current_time = _fastest_verify("Wrong1", hash_password("Password1"))
+
+    assert 0.5 <= legacy_time / current_time <= 2.0
 
 
 def test_needs_rehash_flags_legacy_and_accepts_current() -> None:

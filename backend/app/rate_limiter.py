@@ -2,31 +2,59 @@
 
 from __future__ import annotations
 
+import ipaddress
 import threading
 from collections import OrderedDict
 
 WINDOW_SECONDS = 60.0
 
 
+def _valid_hop(value: str) -> str | None:
+    """Normalize one forwarding entry, rejecting garbage.
+
+    Args:
+        value: One candidate ``X-Forwarded-For`` entry.
+
+    Returns:
+        The normalized IP address, or None when the entry is not an address.
+    """
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return None
+
+
 def client_key(
     forwarded_for: str | None,
     peer_host: str | None,
     trust_proxy: bool,
+    trusted_proxy_hops: int = 1,
 ) -> str:
-    """Resolve the bucket key, honoring the first proxy hop when trusted.
+    """Resolve the bucket key from the trusted proxy-appended hops.
+
+    The leftmost ``X-Forwarded-For`` entries are caller-controlled, so they are
+    never trusted. With ``trust_proxy`` the key is the ``trusted_proxy_hops``-th
+    valid address from the right, i.e. the hop appended by the nearest trusted
+    proxy. Empty and non-IP entries are skipped; when no trusted hop remains,
+    the direct peer address is used.
 
     Args:
         forwarded_for: The raw ``X-Forwarded-For`` header, if present.
         peer_host: The direct socket peer address, if present.
         trust_proxy: Whether proxy-supplied forwarding headers are trusted.
+        trusted_proxy_hops: How many proxy-appended hops to peel from the right.
 
     Returns:
         The client key used for rate-limit bucketing.
     """
     if trust_proxy and forwarded_for:
-        first_hop = forwarded_for.split(",", 1)[0].strip()
-        if first_hop:
-            return first_hop
+        hops: list[str] = []
+        for entry in forwarded_for.split(","):
+            hop = _valid_hop(entry.strip())
+            if hop is not None:
+                hops.append(hop)
+        if 1 <= trusted_proxy_hops <= len(hops):
+            return hops[-trusted_proxy_hops]
     return peer_host or "unknown"
 
 

@@ -45,6 +45,7 @@ def rate_limit(request: Request) -> None:
         request.headers.get("x-forwarded-for"),
         request.client.host if request.client else None,
         settings.trust_proxy,
+        settings.trusted_proxy_hops,
     )
     allowed, remaining, reset = limiter.check(key, time.time())
     request.state.rate_limit_remaining = remaining

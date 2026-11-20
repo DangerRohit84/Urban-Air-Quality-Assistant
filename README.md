@@ -59,11 +59,13 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 - Rate limit: 200 requests/minute per client (`RATE_LIMIT_PER_MIN`), at most
   10,000 buckets (`MAX_RATE_BUCKETS`). `/health` is exempt so probes cannot
   exhaust a user's budget. Set `TRUST_PROXY=true` behind a trusted reverse
-  proxy to bucket on the first `X-Forwarded-For` hop.
+  proxy to bucket on the proxy-appended rightmost `X-Forwarded-For` hop;
+  `TRUSTED_PROXY_HOPS` (default `1`) selects the Nth hop from the right and
+  caller-supplied leftmost entries are ignored.
 
 ## Tests
 
-Test suite: **302 tests** collected by `pytest --collect-only`; the quality
+Test suite: **305 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash

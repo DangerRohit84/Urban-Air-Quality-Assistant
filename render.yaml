@@ -16,3 +16,5 @@ services:
         sync: false
       - key: TRUST_PROXY
         value: "true"
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"

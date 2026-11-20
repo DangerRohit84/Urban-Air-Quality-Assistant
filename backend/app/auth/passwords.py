@@ -115,6 +115,10 @@ def verify_password(password: str, stored: str | None) -> bool:
     actual = hashlib.pbkdf2_hmac(
         "sha256", password.encode("utf-8"), salt, iterations
     )
+    if iterations < ITERATIONS:
+        # Equalize the legacy path with the current work factor so failed
+        # logins do not reveal which accounts still carry an old hash.
+        _ = hash_password(password)
     return hmac.compare_digest(actual, expected)
 
 
@@ -129,10 +133,7 @@ def needs_rehash(stored: str) -> bool:
         and for malformed values.
     """
     parsed = _parse_hash(stored)
-    if parsed is None:
-        return False
-    iterations, _salt, _digest = parsed
-    return iterations < ITERATIONS
+    return False if parsed is None else parsed[0] < ITERATIONS
 
 
 # Precomputed once so an unknown-email login costs exactly one PBKDF2 verify.

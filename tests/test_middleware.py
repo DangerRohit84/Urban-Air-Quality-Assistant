@@ -101,7 +101,7 @@ def test_limit_plus_one_requests_is_429() -> None:
 def test_429_carries_cors_and_security_headers() -> None:
     """A rate-limited browser request can read the 429 for its origin."""
     client = _make_client(limit=1)
-    origin = "http://localhost:8000"
+    origin = settings.allowed_origins[0]
 
     first = client.get("/auth/me", headers={"Origin": origin})
     rejected = client.get("/auth/me", headers={"Origin": origin})
@@ -133,21 +133,81 @@ def test_forwarded_for_is_ignored_when_proxy_untrusted(
     assert third.status_code == 429
 
 
-def test_trusted_proxy_uses_the_first_forwarded_hop(
+def test_trusted_proxy_uses_the_rightmost_forwarded_hop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With ``TRUST_PROXY`` the first hop identifies the client bucket."""
-    monkeypatch.setattr(settings, "rate_limit_per_min", 1)
+    """Spoofed leading hops share the bucket of the proxy-appended hop."""
+    monkeypatch.setattr(settings, "rate_limit_per_min", 2)
     monkeypatch.setattr(settings, "trust_proxy", True)
+    monkeypatch.setattr(settings, "trusted_proxy_hops", 1)
     client = TestClient(create_app())
 
-    first = client.get("/auth/me", headers={"X-Forwarded-For": "1.1.1.1, 10.0.0.1"})
-    second = client.get("/auth/me", headers={"X-Forwarded-For": "2.2.2.2, 10.0.0.1"})
-    third = client.get("/auth/me", headers={"X-Forwarded-For": "1.1.1.1, 10.0.0.2"})
+    first = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "1.1.1.1, 203.0.113.9"}
+    )
+    second = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "2.2.2.2, 203.0.113.9"}
+    )
+    third = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "3.3.3.3, 203.0.113.9"}
+    )
+    other = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "4.4.4.4, 198.51.100.7"}
+    )
 
     assert first.status_code == 401
     assert second.status_code == 401
     assert third.status_code == 429
+    assert third.headers["x-ratelimit-remaining"] == "0"
+    assert other.status_code == 401
+
+
+def test_trusted_proxy_hops_selects_nth_from_right(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``TRUSTED_PROXY_HOPS`` peels additional proxy-appended hops."""
+    monkeypatch.setattr(settings, "rate_limit_per_min", 1)
+    monkeypatch.setattr(settings, "trust_proxy", True)
+    monkeypatch.setattr(settings, "trusted_proxy_hops", 2)
+    client = TestClient(create_app())
+
+    first = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "203.0.113.7, 203.0.113.9"}
+    )
+    second = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "198.51.100.5, 203.0.113.9"}
+    )
+    third = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "203.0.113.7, 203.0.113.10"}
+    )
+
+    assert first.status_code == 401
+    assert second.status_code == 401
+    assert third.status_code == 429
+
+
+def test_trusted_proxy_ignores_empty_and_garbage_hops(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Empty and non-IP entries do not shift the trusted hop."""
+    monkeypatch.setattr(settings, "rate_limit_per_min", 1)
+    monkeypatch.setattr(settings, "trust_proxy", True)
+    monkeypatch.setattr(settings, "trusted_proxy_hops", 1)
+    client = TestClient(create_app())
+
+    first = client.get(
+        "/auth/me", headers={"X-Forwarded-For": ", not-an-ip, 203.0.113.9"}
+    )
+    second = client.get(
+        "/auth/me", headers={"X-Forwarded-For": "junk, 203.0.113.9"}
+    )
+    fallback = client.get("/auth/me", headers={"X-Forwarded-For": "junk"})
+    repeated = client.get("/auth/me", headers={"X-Forwarded-For": "junk"})
+
+    assert first.status_code == 401
+    assert second.status_code == 429
+    assert fallback.status_code == 401
+    assert repeated.status_code == 429
 
 
 def test_oversized_json_body_is_413_without_echo() -> None:

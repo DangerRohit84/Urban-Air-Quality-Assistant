@@ -29,7 +29,7 @@ than oracular.
   multipart headroom), validation errors never echo submitted input, and
   retrieved sources are escaped inside `<source>` delimiters.
 - `/health` is exempt from rate limiting, and `TRUST_PROXY` enables
-  first-hop-aware buckets behind a trusted proxy.
+  rightmost-hop-aware buckets behind a trusted proxy.
 - Disclaimer: This guidance is general information, not medical advice.
 
 ## Gen AI usage
@@ -50,7 +50,7 @@ backend and the model provider can be swapped without touching the routes.
 
 ## Tests
 
-The suite collects **302 tests** (`pytest --collect-only`), including
+The suite collects **305 tests** (`pytest --collect-only`), including
 accessibility, security-boundary, efficiency and docs-claims tests.
 
 ## What to link

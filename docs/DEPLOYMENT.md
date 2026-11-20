@@ -20,7 +20,8 @@ Every variable read by `backend/app/config.py`:
 | `ALLOWED_ORIGINS` | `FRONTEND_ORIGIN` | Comma-separated CORS allowlist. |
 | `RATE_LIMIT_PER_MIN` | `200` | Per-client request budget per 60 seconds; `/health` is exempt. |
 | `MAX_RATE_BUCKETS` | `10000` | LRU bucket bound. |
-| `TRUST_PROXY` | `false` | Trust the first `X-Forwarded-For` hop for rate-limit bucketing; enable only behind a trusted proxy. |
+| `TRUST_PROXY` | `false` | Trust `X-Forwarded-For` for rate-limit bucketing, keyed on the proxy-appended rightmost hop; enable only behind a trusted proxy. |
+| `TRUSTED_PROXY_HOPS` | `1` | Number of trusted proxy-appended hops to peel from the right of `X-Forwarded-For`; ignore caller-supplied leftmost entries. |
 | `MAX_UPLOAD_BYTES` | `10485760` | Upload cap in bytes (10 MiB). |
 | `MAX_DOCUMENTS` | `10` | Documents per owner. |
 | `PORT` | `8000` | Uvicorn port. |
@@ -55,6 +56,13 @@ bucketing. Keep `--no-proxy-headers` on any other launch command as well, or a
 spoofed `X-Forwarded-For` can bypass per-client limits even when
 `TRUST_PROXY=false`.
 
+With `TRUST_PROXY=true` the application ignores the caller-controlled leftmost
+`X-Forwarded-For` entries and keys on the rightmost valid hop - the address
+appended by the trusted edge proxy. `TRUSTED_PROXY_HOPS` (default `1`) selects
+the Nth valid hop from the right, so raise it only when a known chain of
+trusted proxies appends more than one entry. Empty and non-IP entries are
+skipped; if no trusted hop remains, the direct peer address is used.
+
 1. Push the branch and create a new Blueprint from `render.yaml`.
 2. Render builds the Docker image and runs `uvicorn` on `$PORT`.
 3. The blueprint generates `AUTH_SECRET`; set `AQI_API_KEY` only if live AQI is
@@ -77,8 +85,10 @@ approval**; no Render deployment was created.
 - Keep `AQI_API_KEY` empty for an offline-first deployment.
 - Front the service with TLS; the security middleware already sends HSTS.
 - Restrict `ALLOWED_ORIGINS` to the public origin in production.
-- Set `TRUST_PROXY=true` only when a trusted proxy overwrites or appends
-  `X-Forwarded-For`; leaving it false elsewhere prevents header spoofing.
+- Set `TRUST_PROXY=true` only when a trusted proxy sets `X-Forwarded-For`.
+  The limiter keys on the rightmost proxy-appended hop, never the
+  caller-controlled leftmost entry; `TRUSTED_PROXY_HOPS` tunes the hop count.
+  Leaving `TRUST_PROXY=false` elsewhere prevents header spoofing.
 - Ordinary bodies are capped at 1 MiB and uploads at the configured
   `MAX_UPLOAD_BYTES` plus 1 MiB of multipart headroom.
 - The free tier uses ephemeral storage, so SQLite data does not survive a

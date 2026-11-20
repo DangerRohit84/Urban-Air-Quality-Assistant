@@ -102,6 +102,9 @@ class Settings:
         default_factory=lambda: _env_str("TRUST_PROXY", "false").strip().lower()
         in {"1", "true", "yes", "on"}
     )
+    trusted_proxy_hops: int = field(
+        default_factory=lambda: _env_int("TRUSTED_PROXY_HOPS", 1)
+    )
     max_upload_bytes: int = field(
         default_factory=lambda: _env_int("MAX_UPLOAD_BYTES", 10485760)
     )
