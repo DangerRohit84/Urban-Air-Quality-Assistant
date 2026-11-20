@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.body_limit import UPLOAD_HEADROOM, BodyLimitMiddleware
 from backend.app.config import settings
 from backend.app.errors import install_error_handlers
-from backend.app.middleware import security_headers
+from backend.app.middleware import rate_limit_middleware, security_headers
 from backend.app.rate_limiter import SlidingWindowRateLimiter
 from backend.app.routes import api_router
 
@@ -30,10 +30,14 @@ def create_app() -> FastAPI:
         limit=settings.rate_limit_per_min,
         max_buckets=settings.max_rate_buckets,
     )
+    # Starlette treats the last-added middleware as outermost. Security
+    # headers wrap CORS, which wraps the rate limiter, so a 429 keeps both
+    # its CORS origin and the security header set.
     app.add_middleware(
         BodyLimitMiddleware,
         upload_limit=settings.max_upload_bytes + UPLOAD_HEADROOM,
     )
+    app.middleware("http")(rate_limit_middleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,

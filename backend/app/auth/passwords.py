@@ -65,7 +65,7 @@ def hash_password(password: str, iterations: int = ITERATIONS) -> str:
     return f"{ALGORITHM}${iterations}${salt.hex()}${digest.hex()}"
 
 
-def _parse_hash(stored: str) -> tuple[int, bytes, bytes] | None:
+def _parse_hash(stored: str | None) -> tuple[int, bytes, bytes] | None:
     """Parse a stored record into iterations, salt and expected digest.
 
     A two-part ``salt$digest`` value is the pre-upgrade format and is verified
@@ -77,6 +77,8 @@ def _parse_hash(stored: str) -> tuple[int, bytes, bytes] | None:
     Returns:
         The parsed tuple, or None when the record is malformed or unsupported.
     """
+    if not isinstance(stored, str) or not stored:
+        return None
     parts = stored.split("$")
     if len(parts) == 2:
         iterations = LEGACY_ITERATIONS
@@ -95,7 +97,7 @@ def _parse_hash(stored: str) -> tuple[int, bytes, bytes] | None:
         return None
 
 
-def verify_password(password: str, stored: str) -> bool:
+def verify_password(password: str, stored: str | None) -> bool:
     """Verify a password against any supported stored hash in constant time.
 
     Args:

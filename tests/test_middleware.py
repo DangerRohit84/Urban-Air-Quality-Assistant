@@ -98,6 +98,24 @@ def test_limit_plus_one_requests_is_429() -> None:
     assert response.headers["x-ratelimit-remaining"] == "0"
 
 
+def test_429_carries_cors_and_security_headers() -> None:
+    """A rate-limited browser request can read the 429 for its origin."""
+    client = _make_client(limit=1)
+    origin = "http://localhost:8000"
+
+    first = client.get("/auth/me", headers={"Origin": origin})
+    rejected = client.get("/auth/me", headers={"Origin": origin})
+
+    assert first.status_code == 401
+    assert rejected.status_code == 429
+    assert rejected.headers["access-control-allow-origin"] == origin
+    assert rejected.headers["access-control-allow-credentials"] == "true"
+    assert rejected.headers["retry-after"] == "60"
+    assert rejected.headers["x-ratelimit-remaining"] == "0"
+    for header in EXPECTED_HEADERS:
+        assert header in rejected.headers, f"429 missing {header}"
+
+
 def test_forwarded_for_is_ignored_when_proxy_untrusted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

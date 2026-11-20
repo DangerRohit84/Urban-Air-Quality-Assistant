@@ -119,6 +119,21 @@ def test_documented_paths_exist() -> None:
     assert not missing, f"documented paths that do not exist: {missing}"
 
 
+def test_documented_uvicorn_commands_disable_proxy_headers() -> None:
+    """Every runnable uvicorn command keeps ``--no-proxy-headers``."""
+    sources = (README, DEPLOYMENT, ROOT / "Dockerfile")
+    commands = [
+        (source.name, line)
+        for source in sources
+        for line in source.read_text(encoding="utf-8").splitlines()
+        if "uvicorn backend.app.main:app" in line
+    ]
+
+    assert commands, "no documented uvicorn command found"
+    for name, line in commands:
+        assert "--no-proxy-headers" in line, f"{name}: {line}"
+
+
 def test_every_config_env_var_is_documented() -> None:
     """Every environment variable read by ``config.py`` appears in the guide."""
     text = DEPLOYMENT.read_text(encoding="utf-8")

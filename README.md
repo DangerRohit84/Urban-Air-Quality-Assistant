@@ -30,10 +30,13 @@ python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn backend.app.main:app --reload --port 8000
+uvicorn backend.app.main:app --reload --port 8000 --no-proxy-headers
 ```
 
-Then open http://localhost:8000.
+Then open http://localhost:8000. `--no-proxy-headers` stops Uvicorn from
+rewriting the client address from `X-Forwarded-For`, so `TRUST_PROXY` remains
+the only switch for proxy-aware rate limiting; keep the flag on every launch
+command.
 
 ## Performance and resource bounds
 
@@ -60,7 +63,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **299 tests** collected by `pytest --collect-only`; the quality
+Test suite: **302 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash

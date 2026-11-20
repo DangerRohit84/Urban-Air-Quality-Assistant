@@ -84,6 +84,13 @@ def test_verify_rejects_malformed_stored_hash() -> None:
     assert verify_password("Password1", "nope") is False
 
 
+def test_verify_rejects_missing_or_empty_stored_hash() -> None:
+    """A None, empty or malformed stored hash returns False instead of raising."""
+    assert verify_password("Password1", None) is False
+    assert verify_password("Password1", "") is False
+    assert verify_password("Password1", "$$$") is False
+
+
 def test_normalize_email_lowercases_and_trims() -> None:
     """Normalization trims whitespace and lowercases the address."""
     assert normalize_email(" A@B.COM ") == "a@b.com"

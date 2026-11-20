@@ -86,18 +86,18 @@ def _attach_headers(
     return resp
 
 
-async def security_headers(
+async def rate_limit_middleware(
     request: Request,
     call_next: RequestResponseEndpoint,
 ) -> Response:
-    """ASGI middleware adding security headers and enforcing rate limits.
+    """ASGI middleware enforcing the rate limit inside the CORS layer.
 
     Args:
         request: The incoming request.
         call_next: The next middleware/handler in the stack.
 
     Returns:
-        The decorated response.
+        The handler response, or a decorated 429 rejection.
     """
     try:
         rate_limit(request)
@@ -108,6 +108,22 @@ async def security_headers(
             headers=exc.headers,
         )
         return _attach_headers(rejected, request, limited=True)
+    return await call_next(request)
+
+
+async def security_headers(
+    request: Request,
+    call_next: RequestResponseEndpoint,
+) -> Response:
+    """ASGI middleware adding security headers to every response.
+
+    Args:
+        request: The incoming request.
+        call_next: The next middleware/handler in the stack.
+
+    Returns:
+        The decorated response.
+    """
     try:
         response: Response = await call_next(request)
     except Exception:  # noqa: BLE001 - the middleware must never leak crashes
