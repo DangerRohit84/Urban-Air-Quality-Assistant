@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   askQuestion,
   expectCitation,
@@ -12,6 +12,16 @@ import {
 
 const OUTPUT = path.resolve(__dirname, "../../docs/screenshots");
 
+/** Remove focus rings/carets so the evidence images show the resting UI. */
+async function blurActiveElement(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+  });
+}
+
 test("capture the documented screenshots", async ({ page }) => {
   test.slow();
   mkdirSync(OUTPUT, { recursive: true });
@@ -21,6 +31,8 @@ test("capture the documented screenshots", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Sign in or register" }),
   ).toBeVisible();
+  await expect(page.locator("#errors")).toBeEmpty();
+  await blurActiveElement(page);
   await page.screenshot({
     path: path.join(OUTPUT, "home.png"),
     fullPage: true,
@@ -33,6 +45,7 @@ test("capture the documented screenshots", async ({ page }) => {
     .locator("#register-form")
     .getByLabel("Password")
     .fill(PASSWORD);
+  await blurActiveElement(page);
   await page.locator("#auth-card").screenshot({
     path: path.join(OUTPUT, "register.png"),
     animations: "disabled",
@@ -45,7 +58,10 @@ test("capture the documented screenshots", async ({ page }) => {
 
   await saveDelhiProfile(page);
   await savePoorBandAndFetch(page);
-  await page.locator("#air-panel").scrollIntoViewIfNeeded();
+  await blurActiveElement(page);
+  await page
+    .locator("#air-panel")
+    .evaluate((element) => element.scrollIntoView({ block: "start" }));
   await page.screenshot({
     path: path.join(OUTPUT, "dashboard-aqi.png"),
     animations: "disabled",
@@ -53,19 +69,24 @@ test("capture the documented screenshots", async ({ page }) => {
 
   await askQuestion(page, "indoor air purifier");
   await expectCitation(page);
+  await blurActiveElement(page);
   await page.locator("#ask").screenshot({
     path: path.join(OUTPUT, "grounded-answer.png"),
     animations: "disabled",
   });
 
   await uploadPdf(page);
+  await blurActiveElement(page);
   await page.locator("#documents").screenshot({
     path: path.join(OUTPUT, "documents.png"),
     animations: "disabled",
   });
 
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.locator("#air-panel").scrollIntoViewIfNeeded();
+  await blurActiveElement(page);
+  await page
+    .locator("#air-panel")
+    .evaluate((element) => element.scrollIntoView({ block: "start" }));
   await page.screenshot({
     path: path.join(OUTPUT, "mobile-dashboard.png"),
     animations: "disabled",

@@ -210,7 +210,7 @@ Test modules under `tests/`:
 
 ![Signed-out home page](docs/screenshots/home.png)
 
-![Dashboard with Delhi profile and offline AQI](docs/screenshots/dashboard-aqi.png)
+![Air quality panel with offline AQI and plan routines](docs/screenshots/dashboard-aqi.png)
 
 ![Grounded answer with a seed citation](docs/screenshots/grounded-answer.png)
 

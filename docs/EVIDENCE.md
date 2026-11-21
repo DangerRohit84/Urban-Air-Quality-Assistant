@@ -65,13 +65,13 @@ violations, so no accessibility remediation was required after the audit.
 |---|---|---|
 | `docs/screenshots/home.png` | 1280x900 | Signed-out landing page |
 | `docs/screenshots/register.png` | 868x477 | Register and sign-in forms |
-| `docs/screenshots/dashboard-aqi.png` | 1280x900 | Delhi profile and Poor offline AQI |
+| `docs/screenshots/dashboard-aqi.png` | 1280x900 | Air quality panel with Poor offline AQI and plan routines |
 | `docs/screenshots/grounded-answer.png` | 868x658 | Grounded answer with citation |
 | `docs/screenshots/documents.png` | 868x468 | Upload form and document list |
 | `docs/screenshots/mobile-dashboard.png` | 375x812 | Mobile dashboard |
 
 ![Signed-out home page](screenshots/home.png)
 
-![Dashboard with Delhi profile and offline AQI](screenshots/dashboard-aqi.png)
+![Air quality panel with offline AQI and plan routines](screenshots/dashboard-aqi.png)
 
 ![Grounded answer with a seed citation](screenshots/grounded-answer.png)
