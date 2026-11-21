@@ -55,13 +55,21 @@ command.
 
 ## Performance and resource bounds
 
-Measured on the Windows development host by `tests/test_efficiency.py` and a
-50-request sample of `GET /health` and a cached corpus search:
+Measured on the Windows development host by `scripts/benchmark.py` (30 passes
+against a real Uvicorn server; full methodology and machine details in
+`docs/BENCHMARKS.md`, raw numbers in `docs/benchmark-results.json`):
 
-- Health p50 2.7 ms, p95 3.8 ms; the test asserts a hard bound of 1.0 s.
-- Cached search p50 0.6 ms, p95 0.8 ms; the test asserts a hard bound of 1.0 s.
-- Repeat searches hit the TF-IDF cache (54 hits / 1 miss in the sample, > 95%).
-- Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 92%.
+- Grounded `/ask` p50 17.8 ms, p95 22.9 ms; refusal p50 15.0 ms, p95 29.5 ms.
+- `GET /air` offline p50 17.0 ms, p95 26.5 ms.
+- ~1 MB PDF upload p50 306 ms, p95 340 ms; inline document insert p50 16.1 ms.
+- Register + login p50 450 ms: PBKDF2 at 600,000 iterations runs twice, by design.
+- Cold import median 2.19 s; Docker image 171.5 MiB, 512 MiB container smoke passed.
+
+The efficiency tests keep hard ceilings: a 50-request sample of `GET /health`
+and a cached corpus search measures health p50 2.7 ms / p95 3.8 ms and cached
+search p50 0.6 ms / p95 0.8 ms, both asserted against a 1.0 s bound. Repeat
+searches hit the TF-IDF cache (54 hits / 1 miss in the sample, > 95%).
+Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 92%.
 - Retrieval relevance: a hit grounds a question only when its TF-IDF cosine is
   at least `0.15` **and** at least `30%` of the query's content tokens appear
   in the hit's text/title. Content tokens exclude stop words and generic filler
@@ -89,7 +97,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **372 tests** collected by `pytest --collect-only`; the quality
+Test suite: **391 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -108,12 +116,13 @@ Backend modules under `backend/app/`:
 - `chunking.py`, `corpus.py`, `retrieval.py`, `retrieval_index.py`,
   `retrieval_fallback.py`, `upload_guard.py`, `upload_slot.py`, `pdf_parser.py`,
   `pdf_text.py`, `rate_limiter.py`, `version_guard.py`.
-- `auth/` (`passwords.py`, `tokens.py`, `service.py`, `dependencies.py`),
-  `llm/` (`base.py`, `factory.py`, `local_synth.py`, `gemini.py`,
-  `openai_compat.py`, `http_json.py`), `air/` (`provider.py`,
+- `auth/` (`passwords.py`, `claims.py`, `tokens.py`, `service.py`,
+  `dependencies.py`), `llm/` (`base.py`, `factory.py`, `local_synth.py`,
+  `gemini.py`, `openai_compat.py`, `http_json.py`), `air/` (`provider.py`,
   `openweather.py`).
 - `storage/` (`protocol.py`, `schema.py`, `migrations.py`, `sqlite_base.py`,
-  `sqlite_rows.py`, `memory.py`, `sqlite_store.py`, `store.py`).
+  `sqlite_rows.py`, `revocations.py`, `memory.py`, `sqlite_store.py`,
+  `store.py`).
 - `routes/` (`system.py`, `auth.py`, `profile.py`, `air.py`, `plans.py`,
   `export.py`, `ask.py`, `documents.py`, `uploads.py`).
 - `schemas/` (`auth.py`, `profile.py`, `air.py`, `documents.py`, `ask.py`,
@@ -124,13 +133,13 @@ Test modules under `tests/`:
 - `test_scaffold.py`, `test_config.py`, `test_health.py`,
   `test_middleware.py`, `test_errors.py`, `test_storage.py`,
   `test_passwords.py`, `test_tokens.py`, `test_auth.py`,
-  `test_boundaries.py`, `test_profile.py`, `test_aqi.py`,
+  `test_revocation.py`, `test_boundaries.py`, `test_profile.py`, `test_aqi.py`,
   `test_air_api.py`, `test_impact.py`, `test_plans.py`,
   `test_export.py`, `test_retrieval.py`, `test_documents_api.py`,
   `test_prompting.py`, `test_llm_providers.py`, `test_ask.py`,
   `test_frontend_a11y.py`, `test_frontend_features.py`,
   `test_code_quality.py`, `test_docs_claims.py`, `test_efficiency.py`,
-  `test_quality_gates.py`, `test_packaging.py`.
+  `test_quality_gates.py`, `test_packaging.py`, `test_benchmark_script.py`.
 
 ## Security
 
@@ -140,7 +149,10 @@ Test modules under `tests/`:
   and are transparently upgraded on the next successful login.
   Unknown-email logins still perform one PBKDF2 verification against a cached
   dummy hash, so account existence is not revealed by timing.
-- HMAC-SHA256 bearer tokens with `sub` and `exp`, compared in constant time.
+- HMAC-SHA256 bearer tokens with `sub`, `exp` and a unique `jti`, compared in
+  constant time. `POST /auth/logout` revokes the presented token, and revoked
+  tokens get 401 on every protected route; revocations persist in SQLite and
+  expired entries are pruned.
 - Generic `{"detail": "invalid credentials"}` 401s for every auth failure, so
   the response never reveals whether an account exists.
 - Owner-scoped profiles, AQI context and documents; cross-user access returns
@@ -180,6 +192,7 @@ Test modules under `tests/`:
 | GET | `/health` | no | Provider, cache, store and uptime snapshot. |
 | POST | `/auth/register` | no | Create an account and return a token. |
 | POST | `/auth/login` | no | Authenticate and return a token. |
+| POST | `/auth/logout` | yes | Revoke the presented bearer token (204). |
 | GET | `/auth/me` | yes | Current user. |
 | GET | `/profile` | yes | Stored profile, or 404. |
 | PUT | `/profile` | yes | Validate and store the profile. |
@@ -211,5 +224,8 @@ python scripts/smoke.py http://127.0.0.1:8000
 ```
 
 The smoke matrix passes 24/24 against a local `uvicorn` and against the local
-Docker container. The Render deploy URL is pending explicit user approval; no
-Render deployment was created by this work.
+Docker container. The image measures 171.5 MiB and passes the benchmark's
+512 MiB container smoke test; reproduce both with
+`python scripts/benchmark.py` (see `docs/BENCHMARKS.md`). The Render deploy URL
+is pending explicit user approval; no Render deployment was created by this
+work.

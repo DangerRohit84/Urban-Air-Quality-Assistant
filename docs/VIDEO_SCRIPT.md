@@ -47,5 +47,8 @@ are owner-scoped, so another account can never retrieve them."
 
 ## 2:40 - 3:00 - Wrap up
 
-"Export the plan as Markdown, or deploy the same image to Render. The whole
-gate - ruff, mypy, 372 tests, 92% coverage - runs locally with one command."
+"Log out to revoke the current token - the server rejects it from then on, and
+the revocation survives a restart. Export the plan as Markdown, or deploy the
+same image to Render. The whole gate - ruff, mypy, 391 tests, 92% coverage -
+runs locally with one command, and `scripts/benchmark.py` reproduces the
+measured latency and the 512 MiB container smoke test."

@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-11-21T09:50:44Z",
+  "platform": "Windows-10-10.0.26340-SP0",
+  "python": "3.11.9",
+  "cpu_count": 20,
+  "iterations": 30,
+  "pdf_bytes": 1000000,
+  "latency": {
+    "register+login": {
+      "count": 30.0,
+      "mean_ms": 450.57,
+      "p50_ms": 450.5,
+      "p95_ms": 482.34,
+      "min_ms": 418.07,
+      "max_ms": 487.97
+    },
+    "air offline": {
+      "count": 30.0,
+      "mean_ms": 15.37,
+      "p50_ms": 17.03,
+      "p95_ms": 26.48,
+      "min_ms": 2.57,
+      "max_ms": 26.88
+    },
+    "ask grounded": {
+      "count": 30.0,
+      "mean_ms": 14.9,
+      "p50_ms": 17.84,
+      "p95_ms": 22.89,
+      "min_ms": 4.16,
+      "max_ms": 27.75
+    },
+    "ask refusal": {
+      "count": 30.0,
+      "mean_ms": 16.51,
+      "p50_ms": 14.96,
+      "p95_ms": 29.54,
+      "min_ms": 3.19,
+      "max_ms": 30.98
+    },
+    "documents inline": {
+      "count": 30.0,
+      "mean_ms": 15.95,
+      "p50_ms": 16.07,
+      "p95_ms": 27.79,
+      "min_ms": 4.21,
+      "max_ms": 30.02
+    },
+    "documents upload ~1MB": {
+      "count": 30.0,
+      "mean_ms": 311.18,
+      "p50_ms": 306.46,
+      "p95_ms": 340.34,
+      "min_ms": 287.97,
+      "max_ms": 345.99
+    }
+  },
+  "cold_import": {
+    "runs": 3.0,
+    "median_ms": 2191.8,
+    "min_ms": 2165.6,
+    "max_ms": 2218.8
+  },
+  "docker": {
+    "available": true,
+    "built": true,
+    "image": "urban-air-quality-assistant:benchmark",
+    "image_size_bytes": 179786524,
+    "image_size_mib": 171.5,
+    "smoke_512m": "passed",
+    "smoke_memory_limit": "512 MiB"
+  }
+}

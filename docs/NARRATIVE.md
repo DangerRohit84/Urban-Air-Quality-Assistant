@@ -23,7 +23,10 @@ than oracular.
 - Passwords use PBKDF2-HMAC-SHA256 (600,000 iterations, 16-byte salt) in a
   self-describing record; legacy 120,000-iteration hashes still verify and are
   upgraded on the next successful login. Bearer
-  tokens are HMAC-SHA256 with an expiry. Unknown-email logins verify against a
+  tokens are HMAC-SHA256 with an expiry and a unique `jti`; `POST /auth/logout`
+  revokes the presented token, revoked tokens get 401 on every protected route,
+  and the revocation list persists in SQLite with expired entries pruned.
+  Unknown-email logins verify against a
   cached dummy hash so timing does not reveal account existence.
 - Request bodies are capped at 1 MiB; uploads get the 5 MiB configured cap
   plus multipart headroom and are parsed one at a time, so a concurrent
@@ -53,16 +56,21 @@ key is configured, three ranked plan sections, an impact panel, a grounded ask
 box with a plain-language toggle, and a document library with PDF upload. The
 backend is layered around a repository port and provider ports, so the storage
 backend and the model provider can be swapped without touching the routes.
+Sessions can be ended explicitly: logout revokes the presented bearer token and
+the SQLite store remembers the revocation across restarts.
 
 ## Tests
 
-The suite collects **372 tests** (`pytest --collect-only`), including
-accessibility, security-boundary, efficiency and docs-claims tests.
+The suite collects **391 tests** (`pytest --collect-only`), including
+accessibility, security-boundary, efficiency and docs-claims tests. Measured
+end-to-end latency, cold start and container evidence are recorded in
+`docs/BENCHMARKS.md` and reproducible with `scripts/benchmark.py`.
 
 ## What to link
 
 - `README.md` - quickstart, architecture and API table.
 - `docs/DEPLOYMENT.md` - environment variables and deployment.
+- `docs/BENCHMARKS.md` - measured latency, cold start and Docker evidence.
 - `docs/VIDEO_SCRIPT.md` - a two-minute walkthrough.
 - `docs/superpowers/specs/2026-11-18-urban-air-quality-assistant-design.md` -
   the approved design.

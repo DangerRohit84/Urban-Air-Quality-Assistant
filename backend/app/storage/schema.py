@@ -1,4 +1,4 @@
-"""Schema v1 DDL and the table list."""
+"""Schema DDL and the table list."""
 
 from __future__ import annotations
 
@@ -46,4 +46,17 @@ CREATE TABLE IF NOT EXISTS aqi_context (
 );
 """
 
-TABLES: tuple[str, ...] = ("users", "profiles", "documents", "aqi_context")
+SCHEMA_V2 = """
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+    jti TEXT PRIMARY KEY,
+    expires_at INTEGER NOT NULL
+);
+"""
+
+TABLES: tuple[str, ...] = (
+    "users",
+    "profiles",
+    "documents",
+    "aqi_context",
+    "revoked_tokens",
+)

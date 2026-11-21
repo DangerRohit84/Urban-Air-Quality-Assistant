@@ -1,0 +1,17 @@
+.git
+.venv
+.ai
+.superpowers
+.pytest_cache
+.mypy_cache
+.ruff_cache
+__pycache__
+*.pyc
+.coverage
+.coverage.*
+htmlcov
+docs
+tests
+data
+*.db
+*.sqlite

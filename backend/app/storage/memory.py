@@ -8,6 +8,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from backend.app.models import AqiContext, Document, Profile, User
+from backend.app.storage.revocations import MemoryRevocationsMixin
 
 
 def _now() -> str:
@@ -20,7 +21,7 @@ def _new_id() -> str:
     return uuid.uuid4().hex
 
 
-class InMemoryRepo:
+class InMemoryRepo(MemoryRevocationsMixin):
     """A thread-safe in-memory implementation of the Repository protocol."""
 
     def __init__(self) -> None:
@@ -30,6 +31,7 @@ class InMemoryRepo:
         self._profiles: dict[str, Profile] = {}
         self._contexts: dict[str, AqiContext] = {}
         self._documents: dict[str, Document] = {}
+        self._revoked: dict[str, int] = {}
         self._lock = threading.RLock()
 
     def ensure_schema(self) -> None:

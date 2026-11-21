@@ -1,13 +1,13 @@
-"""Auth routes: register, login and the current user."""
+"""Auth routes: register, login, logout and the current user."""
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from backend.app.auth import service
-from backend.app.auth.dependencies import current_user
+from backend.app.auth.dependencies import bearer_claims, current_user
 from backend.app.models import User
 from backend.app.schemas.auth import (
     LoginRequest,
@@ -15,6 +15,7 @@ from backend.app.schemas.auth import (
     TokenResponse,
     UserOut,
 )
+from backend.app.storage.store import get_repo
 
 router = APIRouter(tags=["auth"])
 
@@ -89,3 +90,19 @@ def me(user: Annotated[User, Depends(current_user)]) -> UserOut:
         The public user representation.
     """
     return UserOut(id=user.id, email=user.email, created_at=user.created_at)
+
+
+@router.post("/auth/logout", status_code=204)
+def logout(request: Request) -> Response:
+    """Revoke the bearer token presented with the request.
+
+    Args:
+        request: The request carrying the token to revoke.
+
+    Returns:
+        An empty 204 response.
+    """
+    claims = bearer_claims(request)
+    if claims.jti is not None:
+        get_repo().revoke_token(claims.jti, claims.expires_ns)
+    return Response(status_code=204)

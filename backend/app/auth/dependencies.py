@@ -6,13 +6,37 @@ from dataclasses import replace
 
 from fastapi import HTTPException, Request
 
-from backend.app.auth.tokens import verify_token
+from backend.app.auth.claims import TokenClaims
+from backend.app.auth.tokens import verify_claims
 from backend.app.models import Profile, User
 from backend.app.profile import DEFAULT_PROFILE
 from backend.app.storage.protocol import Repository
 from backend.app.storage.store import get_repo
 
 INVALID_CREDENTIALS = "invalid credentials"
+
+
+def bearer_claims(request: Request) -> TokenClaims:
+    """Extract, verify and revocation-check the bearer token.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        The verified token claims.
+
+    Raises:
+        HTTPException: 401 with a generic detail on any failure.
+    """
+    scheme, _, token = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
+    claims = verify_claims(token.strip())
+    if claims is None:
+        raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
+    if claims.jti is not None and get_repo().is_token_revoked(claims.jti):
+        raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
+    return claims
 
 
 def bearer_token(request: Request) -> str:
@@ -27,13 +51,7 @@ def bearer_token(request: Request) -> str:
     Raises:
         HTTPException: 401 with a generic detail on any failure.
     """
-    scheme, _, token = request.headers.get("authorization", "").partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
-        raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
-    user_id = verify_token(token.strip())
-    if user_id is None:
-        raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
-    return user_id
+    return bearer_claims(request).subject
 
 
 def require_user_id(request: Request) -> str:

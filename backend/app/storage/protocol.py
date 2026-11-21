@@ -30,6 +30,18 @@ class Repository(Protocol):
         """Replace the password hash for ``user_id`` when the user exists."""
         ...
 
+    def revoke_token(self, jti: str, expires_ns: int) -> None:
+        """Record ``jti`` as revoked until ``expires_ns``."""
+        ...
+
+    def is_token_revoked(self, jti: str) -> bool:
+        """Return True when ``jti`` is revoked and unexpired."""
+        ...
+
+    def count_revoked_tokens(self) -> int:
+        """Return the number of stored revocation records."""
+        ...
+
     def save_profile(self, profile: Profile) -> Profile:
         """Insert or update the profile for ``profile.user_id``."""
         ...

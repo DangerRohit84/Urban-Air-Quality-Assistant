@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
@@ -74,14 +75,14 @@ def repo(request: pytest.FixtureRequest, tmp_path: Path) -> Repository:
     return SQLiteRepo(tmp_path / "store.db")  # type: ignore[operator]
 
 
-def test_schema_v1_creates_tables_and_version(tmp_path: Path) -> None:
-    """Schema v1 creates the four tables and sets ``user_version`` to 1."""
+def test_migrations_create_tables_and_version(tmp_path: Path) -> None:
+    """Migrations create every table and set ``user_version`` to 2."""
     conn = sqlite3.connect(tmp_path / "schema.db")
     try:
         version = apply_migrations(conn)
 
-        assert version == 1
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert version == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
         tables = {
             row[0]
             for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -92,7 +93,7 @@ def test_schema_v1_creates_tables_and_version(tmp_path: Path) -> None:
 
 
 def test_migration_is_idempotent(tmp_path: Path) -> None:
-    """Applying v1 twice is a no-op and preserves unrelated rows."""
+    """Applying the migrations twice is a no-op and preserves unrelated rows."""
     conn = sqlite3.connect(tmp_path / "migrate.db")
     try:
         conn.execute("CREATE TABLE sentinel (id INTEGER)")
@@ -100,9 +101,9 @@ def test_migration_is_idempotent(tmp_path: Path) -> None:
         conn.execute("PRAGMA user_version = 0")
         conn.commit()
 
-        assert apply_migrations(conn) == 1
-        assert apply_migrations(conn) == 1
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert apply_migrations(conn) == 2
+        assert apply_migrations(conn) == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
         assert conn.execute("SELECT id FROM sentinel").fetchone()[0] == 7
     finally:
         conn.close()
@@ -168,6 +169,45 @@ def test_aqi_context_round_trip(repo: Repository) -> None:
 
     assert repo.get_aqi_context(user.id) == ctx
     assert repo.get_aqi_context("nobody") is None
+
+
+def test_revocation_round_trip(repo: Repository) -> None:
+    """Both backends record, report and de-duplicate revocations."""
+    expires = time.time_ns() + 60_000_000_000
+
+    repo.revoke_token("jti-1", expires)
+
+    assert repo.is_token_revoked("jti-1") is True
+    assert repo.is_token_revoked("other") is False
+    assert repo.count_revoked_tokens() == 1
+
+    repo.revoke_token("jti-1", expires + 1)
+    assert repo.count_revoked_tokens() == 1
+
+
+def test_expired_revocation_is_pruned(repo: Repository) -> None:
+    """A revocation whose expiry has passed is ignored and pruned."""
+    repo.revoke_token("stale", time.time_ns() - 1)
+
+    assert repo.is_token_revoked("stale") is False
+    assert repo.count_revoked_tokens() == 0
+
+
+def test_sqlite_revocation_survives_reopen(tmp_path: Path) -> None:
+    """A revoked token stays revoked after the SQLite file is reopened."""
+    path = tmp_path / "revoked.db"
+    first = SQLiteRepo(path)
+    try:
+        first.revoke_token("persisted", time.time_ns() + 60_000_000_000)
+    finally:
+        first.close()
+
+    second = SQLiteRepo(path)
+    try:
+        assert second.is_token_revoked("persisted") is True
+        assert second.count_revoked_tokens() == 1
+    finally:
+        second.close()
 
 
 def test_document_crud_and_owner_isolation(repo: Repository) -> None:

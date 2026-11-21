@@ -32,6 +32,12 @@ vendor SDK packages are required. A timeout, HTTP error, redirect, oversized
 response or malformed response falls back to `local_synth`, and `/ask` still
 returns a cited answer.
 
+Bearer tokens carry a unique `jti`. `POST /auth/logout` revokes the presented
+token and revoked tokens get 401 on every protected route. SQLite deployments
+persist revocations in the `revoked_tokens` table (schema v2, migrated
+automatically on startup) and prune expired rows; the in-memory backend keeps
+revocations for the process lifetime.
+
 Uploaded PDF text is capped at 50,000 characters after sanitization
 (`MAX_DOCUMENT_CHARS`); longer extracted text returns 422 rather than being
 silently truncated. PDFs over 20 pages, or extraction that exceeds the
@@ -50,6 +56,7 @@ spawned extraction worker can add hundreds of MiB.
 ```bash
 python -m pytest -q               # full suite
 python scripts/check_quality.py   # ruff + mypy + pytest + coverage gate
+python scripts/benchmark.py --iterations 30 --json docs/benchmark-results.json
 python scripts/smoke.py http://127.0.0.1:8000
 ```
 

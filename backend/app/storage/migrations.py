@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backend.app.storage.schema import SCHEMA_V1
+from backend.app.storage.schema import SCHEMA_V1, SCHEMA_V2
 
 
 def apply_migrations(conn: sqlite3.Connection) -> int:
@@ -21,5 +21,8 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
     if version < 1:
         conn.executescript(SCHEMA_V1)
         conn.execute("PRAGMA user_version = 1")
+    if version < 2:
+        conn.executescript(SCHEMA_V2)
+        conn.execute("PRAGMA user_version = 2")
     conn.commit()
     return int(conn.execute("PRAGMA user_version").fetchone()[0])

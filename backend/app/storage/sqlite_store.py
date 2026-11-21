@@ -11,7 +11,7 @@ from pathlib import Path
 
 from backend.app.models import AqiContext, Document, Profile, User
 from backend.app.storage.migrations import apply_migrations
-from backend.app.storage.sqlite_base import SQLiteBackend
+from backend.app.storage.revocations import SQLiteRevocations
 from backend.app.storage.sqlite_rows import (
     row_to_context,
     row_to_document,
@@ -33,7 +33,7 @@ def _new_id() -> str:
     return uuid.uuid4().hex
 
 
-class SQLiteRepo(SQLiteBackend):
+class SQLiteRepo(SQLiteRevocations):
     """A SQLite implementation of the Repository protocol."""
 
     def __init__(self, db_path: Path) -> None:
