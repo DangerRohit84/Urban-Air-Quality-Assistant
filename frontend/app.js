@@ -65,6 +65,7 @@ function setSession(tokenValue) {
 
 function showApp() {
   document.getElementById("auth-card").hidden = true;
+  document.getElementById("session-bar").hidden = false;
   [
     "profile-section",
     "air-panel",
@@ -79,6 +80,7 @@ function showApp() {
 
 function hideApp() {
   document.getElementById("auth-card").hidden = false;
+  document.getElementById("session-bar").hidden = true;
   [
     "profile-section",
     "air-panel",
@@ -128,6 +130,24 @@ function handleLogin(event) {
     })
     .catch(function (error) {
       showError(error.message);
+    });
+}
+
+function handleLogout() {
+  return apiFetch("/auth/logout", { method: "POST" })
+    .catch(function () {
+      return null;
+    })
+    .then(function () {
+      sessionStorage.removeItem(TOKEN_KEY);
+      document.getElementById("answer-text").textContent = "";
+      document.getElementById("answerMode").textContent = "Mode: standard";
+      document.getElementById("citations").textContent = "";
+      document.getElementById("docs-list").textContent = "";
+      document.getElementById("uploadStatus").textContent = "";
+      document.getElementById("aqi-readout").textContent = "No reading yet.";
+      hideApp();
+      showStatus("Signed out.");
     });
 }
 
@@ -444,6 +464,7 @@ function init() {
     .getElementById("upload-form")
     .addEventListener("submit", uploadDocument);
   document.getElementById("exportBtn").addEventListener("click", exportPlan);
+  document.getElementById("logoutBtn").addEventListener("click", handleLogout);
 
   if (token()) {
     showApp();

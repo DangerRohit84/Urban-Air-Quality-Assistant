@@ -166,6 +166,22 @@ button:hover {
   background: #1e40af;
 }
 
+.session-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.session-bar[hidden] {
+  display: none;
+}
+
+.session-bar .hint {
+  margin: 0;
+}
+
 .auth-forms {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

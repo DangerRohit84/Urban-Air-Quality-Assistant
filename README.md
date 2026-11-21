@@ -105,6 +105,23 @@ python -m pytest -q              # run the suite
 python scripts/check_quality.py  # ruff + mypy + pytest + coverage gate
 ```
 
+Browser end-to-end and accessibility tests use Playwright 1.65.1 and
+axe-core 4.14.0 (pinned in `e2e/package.json`). They start their own Uvicorn
+on port 8901 with a fresh temporary database and the offline providers, so the
+run needs no network:
+
+```bash
+cd e2e
+npm ci
+npx playwright install chromium
+npm test
+```
+
+The journey spec covers registration, profile save, offline AQI, grounded and
+refused answers, PDF upload, sign-out and sign-in. The axe spec audits the
+home/login, register, dashboard, documents and profile states. See
+`docs/EVIDENCE.md` for the recorded results and screenshots.
+
 ## Project layout
 
 Backend modules under `backend/app/`:
@@ -184,6 +201,18 @@ Test modules under `tests/`:
   targets (checkbox inputs ride on a 44px label target) and a
   `prefers-reduced-motion` block.
 - DOM writes use `textContent`/`createElement` only.
+- Automated axe-core audit (WCAG 2.0/2.1/2.2 A and AA) passes with zero
+  violations on the home/login, register, dashboard, documents and profile
+  states; reproduce it with the Playwright command under Tests. Full results
+  are in `docs/EVIDENCE.md`.
+
+## Screenshots
+
+![Signed-out home page](docs/screenshots/home.png)
+
+![Dashboard with Delhi profile and offline AQI](docs/screenshots/dashboard-aqi.png)
+
+![Grounded answer with a seed citation](docs/screenshots/grounded-answer.png)
 
 ## API
 
