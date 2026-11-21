@@ -14,6 +14,7 @@ import {
 
 test("register, personalize, fetch AQI, ask, upload and sign out", async ({
   page,
+  request,
 }) => {
   const email = uniqueEmail("journey");
 
@@ -50,15 +51,29 @@ test("register, personalize, fetch AQI, ask, upload and sign out", async ({
     page.locator("#docs-list li").filter({ hasText: "delhi-air-notes.pdf" }),
   ).toBeVisible();
 
+  // A stale error banner must not survive sign-out.
+  await page.getByLabel("Question").fill("");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator("#errors")).toHaveText("Enter a question first.");
+
+  const revokedToken = await page.evaluate(() =>
+    sessionStorage.getItem("uqa_token"),
+  );
+  expect(revokedToken).toBeTruthy();
+
   await signOutViaUi(page);
-  const meStatus = await page.evaluate(
-    async () => (await fetch("/auth/me")).status,
-  );
-  expect(meStatus).toBe(401);
-  const plansStatus = await page.evaluate(
-    async () => (await fetch("/plans")).status,
-  );
-  expect(plansStatus).toBe(401);
+  await expect(page.locator("#errors")).toBeEmpty();
+
+  const revokedHeaders = { Authorization: `Bearer ${revokedToken}` };
+  const meStatus = await request.get("/auth/me", {
+    headers: revokedHeaders,
+  });
+  expect(meStatus.status()).toBe(401);
+  const askStatus = await request.post("/ask", {
+    headers: revokedHeaders,
+    data: { question: "indoor air purifier" },
+  });
+  expect(askStatus.status()).toBe(401);
 
   await page.reload();
   await expect(
@@ -71,5 +86,27 @@ test("register, personalize, fetch AQI, ask, upload and sign out", async ({
   await signInViaUi(page, email, PASSWORD);
   await expect(
     page.getByRole("heading", { name: "Your profile" }),
+  ).toBeVisible();
+});
+
+test("offline sign-out clears local state and stays local", async ({ page }) => {
+  await registerViaUi(page, uniqueEmail("offline-logout"));
+  await page.route("**/auth/logout", (route) => route.abort());
+  await page.getByRole("button", { name: "Sign out" }).click();
+
+  await expect(
+    page.getByText("Signed out on this device.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#errors")).toBeEmpty();
+  await expect(
+    page.getByRole("heading", { name: "Sign in or register" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => sessionStorage.getItem("uqa_token")),
+  ).toBeNull();
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Sign in or register" }),
   ).toBeVisible();
 });

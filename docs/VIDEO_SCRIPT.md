@@ -49,6 +49,6 @@ are owner-scoped, so another account can never retrieve them."
 
 "Log out to revoke the current token - the server rejects it from then on, and
 the revocation survives a restart. Export the plan as Markdown, or deploy the
-same image to Render. The whole gate - ruff, mypy, 391 tests, 92% coverage -
+same image to Render. The whole gate - ruff, mypy, 394 tests, 92% coverage -
 runs locally with one command, and `scripts/benchmark.py` reproduces the
 measured latency and the 512 MiB container smoke test."

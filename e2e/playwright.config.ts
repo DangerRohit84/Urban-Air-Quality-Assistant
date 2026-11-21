@@ -1,9 +1,15 @@
-import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
 import path from "node:path";
+import { defineConfig, devices } from "@playwright/test";
 
 const ROOT = path.resolve(__dirname, "..");
 const BASE_URL = "http://127.0.0.1:8901";
 const DB_FILE = `e2e/.tmp/e2e-${process.pid}-${Date.now()}.db`;
+const VENV_PYTHON =
+  process.platform === "win32"
+    ? path.join(".venv", "Scripts", "python.exe")
+    : path.join(".venv", "bin", "python");
+const PYTHON = existsSync(path.join(ROOT, VENV_PYTHON)) ? VENV_PYTHON : "python";
 
 export default defineConfig({
   testDir: "./tests",
@@ -25,8 +31,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command:
-      ".\\.venv\\Scripts\\python.exe -m uvicorn backend.app.main:app --port 8901 --no-proxy-headers",
+    command: `${PYTHON} -m uvicorn backend.app.main:app --port 8901 --no-proxy-headers`,
     cwd: ROOT,
     url: `${BASE_URL}/health`,
     reuseExistingServer: false,

@@ -3,13 +3,16 @@
 
 Usage::
 
-    python scripts/benchmark.py [--iterations 30] [--json PATH] [--no-docker]
+    python scripts/benchmark.py [--iterations 30] [--json PATH] [--skip-docker]
 
 The script starts the real server with uvicorn against a temporary SQLite
 database, exercises the documented API over HTTP, and reports nearest-rank
-p50/p95 latency, means, cold-import time and, when Docker is available, the
-image size plus a 512 MiB container smoke test. Only the standard library is
-used, so it runs in the same environment as the app without extra installs.
+p50/p95 latency, means, cold-import time and, unless ``--skip-docker`` is
+given, the image size plus a 512 MiB container smoke test. Docker build or
+smoke failures exit nonzero so CI cannot silently pass without the evidence;
+``--skip-docker`` (or the legacy ``--no-docker`` alias) opts out and exits
+zero. Only the standard library is used, so it runs in the same environment
+as the app without extra installs.
 """
 
 from __future__ import annotations
@@ -680,7 +683,9 @@ def benchmark(iterations: int, with_docker: bool) -> dict[str, Any]:
         "cold_import": cold_import(),
     }
     report["docker"] = (
-        docker_evidence() if with_docker else {"skipped": "disabled by --no-docker"}
+        docker_evidence()
+        if with_docker
+        else {"skipped": True, "reason": "disabled by --skip-docker"}
     )
     return report
 
@@ -711,6 +716,30 @@ def print_report(report: dict[str, Any]) -> None:
         print(f"Docker: skipped ({docker.get('reason', 'unavailable')})")
 
 
+def docker_failure(report: dict[str, Any]) -> str | None:
+    """Return why the Docker evidence failed, or None when it passed/skipped.
+
+    Args:
+        report: The report returned by :func:`benchmark`.
+
+    Returns:
+        A short failure description, or None when Docker was skipped or the
+        build and 512 MiB smoke test both passed.
+    """
+    docker = report.get("docker", {})
+    if docker.get("skipped"):
+        return None
+    if not docker.get("available"):
+        return str(docker.get("reason", "docker is unavailable"))
+    if not docker.get("built"):
+        detail = str(docker.get("reason", "")).strip().splitlines()
+        return "docker build failed" + (f": {detail[-1]}" if detail else "")
+    if docker.get("smoke_512m") != "passed":
+        detail = str(docker.get("smoke_detail", "")).strip()
+        return "docker smoke test failed" + (f": {detail}" if detail else "")
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse arguments, run the benchmark and write the report.
 
@@ -718,7 +747,8 @@ def main(argv: list[str] | None = None) -> int:
         argv: Optional argument list (defaults to ``sys.argv[1:]``).
 
     Returns:
-        The process exit code.
+        The process exit code: nonzero when Docker was requested but the
+        build or smoke test failed.
     """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -728,12 +758,20 @@ def main(argv: list[str] | None = None) -> int:
         "--json", type=Path, default=None, help="write the report as JSON"
     )
     parser.add_argument(
-        "--no-docker", action="store_true", help="skip the Docker evidence"
+        "--skip-docker",
+        action="store_true",
+        help="skip the Docker evidence and exit zero",
+    )
+    parser.add_argument(
+        "--no-docker",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     args = parser.parse_args(argv)
     if args.iterations < 1:
         parser.error("--iterations must be at least 1")
-    report = benchmark(args.iterations, with_docker=not args.no_docker)
+    skip_docker = args.skip_docker or args.no_docker
+    report = benchmark(args.iterations, with_docker=not skip_docker)
     print_report(report)
     if args.json is not None:
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -741,6 +779,11 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(report, indent=2) + "\n", encoding="utf-8"
         )
         print(f"\nReport written to {args.json}")
+    if not skip_docker:
+        failure = docker_failure(report)
+        if failure is not None:
+            print(f"\nDocker evidence failed: {failure}", file=sys.stderr)
+            return 1
     return 0
 
 

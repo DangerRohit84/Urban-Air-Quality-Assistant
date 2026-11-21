@@ -61,7 +61,7 @@ the SQLite store remembers the revocation across restarts.
 
 ## Tests
 
-The suite collects **391 tests** (`pytest --collect-only`), including
+The suite collects **394 tests** (`pytest --collect-only`), including
 accessibility, security-boundary, efficiency and docs-claims tests. Measured
 end-to-end latency, cold start and container evidence are recorded in
 `docs/BENCHMARKS.md` and reproducible with `scripts/benchmark.py`.

@@ -90,3 +90,65 @@ def test_help_flag_runs_without_starting_the_server() -> None:
     assert result.returncode == 0
     assert "--iterations" in result.stdout
     assert "--json" in result.stdout
+    assert "--skip-docker" in result.stdout
+
+
+def test_docker_failure_reports_each_failure_mode() -> None:
+    """Unavailable, build-failed and smoke-failed evidence is a failure."""
+    module = _load()
+
+    assert module.docker_failure({"docker": {"skipped": "opted out"}}) is None
+    assert module.docker_failure(
+        {"docker": {"available": False, "reason": "docker is not on PATH"}}
+    )
+    assert module.docker_failure(
+        {"docker": {"available": True, "built": False, "reason": "boom"}}
+    )
+    assert module.docker_failure(
+        {
+            "docker": {
+                "available": True,
+                "built": True,
+                "smoke_512m": "failed",
+                "smoke_detail": "ask 500",
+            }
+        }
+    )
+    assert (
+        module.docker_failure(
+            {"docker": {"available": True, "built": True, "smoke_512m": "passed"}}
+        )
+        is None
+    )
+
+
+def test_main_exits_nonzero_when_docker_fails(monkeypatch) -> None:
+    """A failed Docker build makes the default run exit nonzero."""
+    module = _load()
+    calls: list[bool] = []
+
+    def fake_benchmark(iterations: int, with_docker: bool) -> dict[str, object]:
+        calls.append(with_docker)
+        return {"docker": {"available": True, "built": False, "reason": "boom"}}
+
+    monkeypatch.setattr(module, "benchmark", fake_benchmark)
+    monkeypatch.setattr(module, "print_report", lambda report: None)
+
+    assert module.main(["--iterations", "1"]) == 1
+    assert calls == [True]
+
+
+def test_main_skip_docker_exits_zero(monkeypatch) -> None:
+    """``--skip-docker`` opts out and returns zero even without evidence."""
+    module = _load()
+    calls: list[bool] = []
+
+    def fake_benchmark(iterations: int, with_docker: bool) -> dict[str, object]:
+        calls.append(with_docker)
+        return {"docker": {"skipped": "disabled by --skip-docker"}}
+
+    monkeypatch.setattr(module, "benchmark", fake_benchmark)
+    monkeypatch.setattr(module, "print_report", lambda report: None)
+
+    assert module.main(["--iterations", "1", "--skip-docker"]) == 0
+    assert calls == [False]

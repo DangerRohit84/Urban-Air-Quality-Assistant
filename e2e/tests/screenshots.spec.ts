@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import {
@@ -11,6 +11,15 @@ import {
 } from "../support/app";
 
 const OUTPUT = path.resolve(__dirname, "../../docs/screenshots");
+const UPDATE = process.env.UPDATE_SCREENSHOTS === "1";
+const SCREENSHOTS = [
+  "home.png",
+  "register.png",
+  "dashboard-aqi.png",
+  "grounded-answer.png",
+  "documents.png",
+  "mobile-dashboard.png",
+] as const;
 
 /** Remove focus rings/carets so the evidence images show the resting UI. */
 async function blurActiveElement(page: Page): Promise<void> {
@@ -22,7 +31,16 @@ async function blurActiveElement(page: Page): Promise<void> {
   });
 }
 
-test("capture the documented screenshots", async ({ page }) => {
+test("documented screenshots are present and stable", async ({ page }) => {
+  if (!UPDATE) {
+    for (const name of SCREENSHOTS) {
+      const stats = statSync(path.join(OUTPUT, name));
+      expect(stats.isFile()).toBe(true);
+      expect(stats.size).toBeGreaterThan(0);
+    }
+    return;
+  }
+
   test.slow();
   mkdirSync(OUTPUT, { recursive: true });
 

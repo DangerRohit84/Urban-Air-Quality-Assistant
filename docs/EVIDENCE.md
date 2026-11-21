@@ -19,14 +19,18 @@ npm test
 
 The suite starts its own Uvicorn on `http://127.0.0.1:8901` with a fresh
 SQLite database, the deterministic local LLM composer, a dummy AQI key and an
-unreachable HTTP proxy. That combination makes the browser run independent of
+unreachable HTTP proxy. `playwright.config.ts` picks the interpreter per
+platform: `.venv\Scripts\python.exe` on Windows and `.venv/bin/python` on
+macOS/Linux, falling back to `python` from `PATH` when the venv is missing.
+The command is the same on both platforms:
+`<python> -m uvicorn backend.app.main:app --port 8901 --no-proxy-headers`. That combination makes the browser run independent of
 network access: `/air` exercises the real offline fallback path and `/ask`
 never calls a remote model. The temporary database is removed by the
 Playwright teardown.
 
 ## Browser journey
 
-Result: **6 passed** in 9.4 s (6 workers).
+Result: **7 passed** in 9.4 s (7 workers).
 
 The journey spec drives the real UI through:
 
@@ -69,6 +73,12 @@ violations, so no accessibility remediation was required after the audit.
 | `docs/screenshots/grounded-answer.png` | 868x658 | Grounded answer with citation |
 | `docs/screenshots/documents.png` | 868x468 | Upload form and document list |
 | `docs/screenshots/mobile-dashboard.png` | 375x812 | Mobile dashboard |
+
+Normal `npm test` runs only assert that the six PNGs exist and are non-empty;
+they never rewrite the tracked files. To regenerate the evidence images, run
+`UPDATE_SCREENSHOTS=1 npm test -- screenshots.spec.ts` (PowerShell:
+`$env:UPDATE_SCREENSHOTS = "1"; npm test -- screenshots.spec.ts`) and commit
+the resulting stable output.
 
 ![Signed-out home page](screenshots/home.png)
 

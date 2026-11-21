@@ -134,12 +134,19 @@ function handleLogin(event) {
 }
 
 function handleLogout() {
+  var revokedOnServer = false;
   return apiFetch("/auth/logout", { method: "POST" })
+    .then(function () {
+      revokedOnServer = true;
+    })
     .catch(function () {
-      return null;
+      // Offline or already-expired token: sign out locally and say so
+      // without claiming the server revoked anything.
+      revokedOnServer = false;
     })
     .then(function () {
       sessionStorage.removeItem(TOKEN_KEY);
+      document.getElementById("errors").textContent = "";
       document.getElementById("answer-text").textContent = "";
       document.getElementById("answerMode").textContent = "Mode: standard";
       document.getElementById("citations").textContent = "";
@@ -147,7 +154,9 @@ function handleLogout() {
       document.getElementById("uploadStatus").textContent = "";
       document.getElementById("aqi-readout").textContent = "No reading yet.";
       hideApp();
-      showStatus("Signed out.");
+      showStatus(
+        revokedOnServer ? "Signed out." : "Signed out on this device."
+      );
     });
 }
 

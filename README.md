@@ -97,7 +97,7 @@ Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 92%.
 
 ## Tests
 
-Test suite: **391 tests** collected by `pytest --collect-only`; the quality
+Test suite: **394 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
