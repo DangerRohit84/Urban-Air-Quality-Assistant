@@ -13,6 +13,9 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
+from backend.app.config import Settings
 from backend.app.llm.local_synth import LocalSynthProvider
 from backend.app.prompting import DISCLAIMER, Source
 
@@ -20,6 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 NARRATIVE = ROOT / "docs" / "NARRATIVE.md"
 DEPLOYMENT = ROOT / "docs" / "DEPLOYMENT.md"
+FRONTEND = ROOT / "frontend" / "index.html"
+ENV_EXAMPLE = ROOT / ".env.example"
 PYPROJECT = ROOT / "pyproject.toml"
 CONFIG = ROOT / "backend" / "app" / "config.py"
 GEMINI = ROOT / "backend" / "app" / "llm" / "gemini.py"
@@ -165,6 +170,28 @@ def test_every_config_env_var_is_documented() -> None:
     missing = [name for name in _read_env_names() if name not in text]
 
     assert not missing, f"undocumented environment variables: {missing}"
+
+
+def test_upload_cap_claims_match_the_code_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The 5 MiB upload cap is consistent across config, sample and UI copy."""
+    monkeypatch.delenv("MAX_UPLOAD_BYTES", raising=False)
+    cap = Settings().max_upload_bytes
+    readme = README.read_text(encoding="utf-8")
+    deployment = DEPLOYMENT.read_text(encoding="utf-8")
+    frontend = FRONTEND.read_text(encoding="utf-8")
+    env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
+
+    assert cap == 5 * 1024 * 1024
+    assert f"{cap}" in deployment
+    assert f"{cap}" in env_example
+    assert "5 MiB" in readme
+    assert "5 MiB" in deployment
+    assert "5 MB" in frontend
+    assert "10 MiB" not in readme
+    assert "10 MB" not in frontend
+    assert "10485760" not in deployment + env_example
 
 
 def test_coverage_floor_matches_pyproject() -> None:

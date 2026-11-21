@@ -106,7 +106,7 @@ class Settings:
         default_factory=lambda: _env_int("TRUSTED_PROXY_HOPS", 1)
     )
     max_upload_bytes: int = field(
-        default_factory=lambda: _env_int("MAX_UPLOAD_BYTES", 10485760)
+        default_factory=lambda: _env_int("MAX_UPLOAD_BYTES", 5 * 1024 * 1024)
     )
     max_documents: int = field(default_factory=lambda: _env_int("MAX_DOCUMENTS", 10))
     port: int = field(default_factory=lambda: _env_int("PORT", 8000))

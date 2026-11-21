@@ -6,6 +6,9 @@ import os
 
 os.environ.setdefault("AUTH_SECRET", "test-secret")
 os.environ.setdefault("LLM_PROVIDER", "local_synth")
+# Keep the suite hermetic: a developer's checked-out .env may raise the cap,
+# and the upload-boundary tests assert the documented 5 MiB default.
+os.environ.setdefault("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024))
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

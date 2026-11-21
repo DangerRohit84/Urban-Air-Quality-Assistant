@@ -69,9 +69,12 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
   "smoggy" -> "smog" and plurals to singular. An out-of-domain question with no
   content-token match is refused with `grounded: false` and no citations.
 - Every backend module stays under 150 lines (enforced by a test).
-- Upload cap: 10 MiB (`MAX_UPLOAD_BYTES`); documents per owner: 10
+- Upload cap: 5 MiB (`MAX_UPLOAD_BYTES`); documents per owner: 10
   (`MAX_DOCUMENTS`). Ordinary request bodies are capped at 1 MiB; the upload
-  route gets the 10 MiB cap plus 1 MiB of multipart headroom.
+  route gets the 5 MiB cap plus 1 MiB of multipart headroom. Uploads are
+  parsed one at a time, and a concurrent upload returns 503 with
+  `Retry-After: 2` instead of queueing, keeping peak memory inside the
+  512 MB free tier.
 - Document text cap: 50,000 characters (`MAX_DOCUMENT_CHARS`) after
   sanitization, applied to manual text and extracted PDF text alike; longer
   input returns 422 instead of being silently truncated. Empty or
@@ -86,7 +89,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **365 tests** collected by `pytest --collect-only`; the quality
+Test suite: **372 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -103,8 +106,8 @@ Backend modules under `backend/app/`:
 - `aqi.py`, `cities.py`, `factors.py`, `impact.py`, `routines.py`,
   `hacks.py`, `alternatives.py`, `plans.py`, `prompting.py`.
 - `chunking.py`, `corpus.py`, `retrieval.py`, `retrieval_index.py`,
-  `retrieval_fallback.py`, `upload_guard.py`, `pdf_parser.py`, `pdf_text.py`,
-  `rate_limiter.py`, `version_guard.py`.
+  `retrieval_fallback.py`, `upload_guard.py`, `upload_slot.py`, `pdf_parser.py`,
+  `pdf_text.py`, `rate_limiter.py`, `version_guard.py`.
 - `auth/` (`passwords.py`, `tokens.py`, `service.py`, `dependencies.py`),
   `llm/` (`base.py`, `factory.py`, `local_synth.py`, `gemini.py`,
   `openai_compat.py`, `http_json.py`), `air/` (`provider.py`,

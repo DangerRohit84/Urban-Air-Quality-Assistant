@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -12,6 +13,7 @@ from backend.app import retrieval
 from backend.app.config import settings
 from backend.app.pdf_text import MAX_PAGES
 from backend.app.security import MAX_DOCUMENT_CHARS
+from backend.app.upload_slot import UPLOAD_SLOT
 from tests.pdf_fixtures import (
     flate_bomb_pdf,
     many_pages_pdf,
@@ -50,6 +52,20 @@ def _pdf_bytes(text: str) -> bytes:
         f"startxref\n{xref_start}\n%%EOF\n"
     ).encode()
     return bytes(out)
+
+
+def _padded_pdf(text: str, size: int) -> bytes:
+    """Build a valid PDF padded with a trailing comment to exactly ``size``.
+
+    Args:
+        text: The extractable page text.
+        size: The total byte length, which must fit the base PDF plus padding.
+
+    Returns:
+        The padded PDF bytes.
+    """
+    base = _pdf_bytes(text)
+    return base + b"\n%" + b"P" * (size - len(base) - 2)
 
 
 def _second_user(client: TestClient, email: str) -> dict[str, str]:
@@ -316,6 +332,97 @@ def test_upload_oversize_is_413(
     )
 
     assert response.status_code == 413
+
+
+def test_upload_at_the_cap_is_accepted(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A valid PDF exactly at the 5 MiB cap is accepted."""
+    body = _padded_pdf("cap marker", settings.max_upload_bytes)
+
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("cap.pdf", body, "application/pdf")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["text"] == "cap marker"
+
+
+def test_upload_one_byte_over_the_cap_is_413(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A payload above the 5 MiB cap is rejected with 413."""
+    body = b"%PDF-1.4\n" + b"x" * settings.max_upload_bytes
+
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("big.pdf", body, "application/pdf")},
+    )
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": "file too large"}
+
+
+def test_upload_while_busy_is_503_with_retry_after(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A concurrent upload gets 503 with Retry-After and CORS headers."""
+    origin = settings.allowed_origins[0]
+    assert not UPLOAD_SLOT.locked()
+    asyncio.run(UPLOAD_SLOT.acquire())
+    try:
+        response = client.post(
+            "/documents/upload",
+            headers={**auth_headers, "Origin": origin},
+            files={"file": ("note.pdf", _pdf_bytes("busy"), "application/pdf")},
+        )
+    finally:
+        UPLOAD_SLOT.release()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "server busy, retry shortly"}
+    assert response.headers["retry-after"] == "2"
+    assert response.headers["access-control-allow-origin"] == origin
+
+
+def test_upload_without_a_file_part_is_400(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A form without a file part is rejected and frees the slot."""
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        data={"file": "not-a-file"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "file field is required"}
+
+
+def test_slot_is_released_after_a_rejected_upload(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 413 releases the single-flight slot for the next upload."""
+    monkeypatch.setattr(settings, "max_upload_bytes", 1024)
+
+    rejected = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("big.pdf", b"%PDF-" + b"x" * 2048, "application/pdf")},
+    )
+    accepted = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("ok.pdf", _pdf_bytes("released"), "application/pdf")},
+    )
+
+    assert rejected.status_code == 413
+    assert accepted.status_code == 201
 
 
 def test_upload_txt_name_is_400(

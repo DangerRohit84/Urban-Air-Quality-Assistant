@@ -89,6 +89,15 @@ def test_rate_limit_parses_int_env_with_default(monkeypatch: pytest.MonkeyPatch)
     assert Settings().rate_limit_per_min == 42
 
 
+def test_max_upload_bytes_defaults_to_five_mib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``MAX_UPLOAD_BYTES`` defaults to 5 MiB so a burst fits the free tier."""
+    monkeypatch.delenv("MAX_UPLOAD_BYTES", raising=False)
+
+    assert Settings().max_upload_bytes == 5 * 1024 * 1024
+
+
 def test_trust_proxy_defaults_false_and_parses_truthy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

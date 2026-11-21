@@ -22,7 +22,7 @@ Every variable read by `backend/app/config.py`:
 | `MAX_RATE_BUCKETS` | `10000` | LRU bucket bound. |
 | `TRUST_PROXY` | `false` | Trust `X-Forwarded-For` for rate-limit bucketing, keyed on the proxy-appended rightmost hop; enable only behind a trusted proxy. |
 | `TRUSTED_PROXY_HOPS` | `1` | Number of trusted proxy-appended hops to peel from the right of `X-Forwarded-For`; ignore caller-supplied leftmost entries. |
-| `MAX_UPLOAD_BYTES` | `10485760` | Upload cap in bytes (10 MiB). |
+| `MAX_UPLOAD_BYTES` | `5242880` | Upload cap in bytes (5 MiB); one upload is parsed at a time. |
 | `MAX_DOCUMENTS` | `10` | Documents per owner. |
 | `PORT` | `8000` | Uvicorn port. |
 | `LOG_LEVEL` | `info` | Log level. |
@@ -38,6 +38,12 @@ silently truncated. PDFs over 20 pages, or extraction that exceeds the
 4-second in-process budget, the 6-second hard worker-process timeout or the
 1 MB decompressed-stream cap, return 422 instead of consuming unbounded worker
 resources.
+
+Uploads are also bounded by a process-wide single-flight slot: only one PDF is
+read and parsed at a time, and a concurrent upload gets a 503 with
+`Retry-After: 2` instead of queueing. The 5 MiB default cap plus serialized
+parsing keeps peak memory inside the 512 MB Render free instance, where each
+spawned extraction worker can add hundreds of MiB.
 
 ## Local verification
 
@@ -67,6 +73,11 @@ that decides whether the application trusts the header for rate-limit
 bucketing. Keep `--no-proxy-headers` on any other launch command as well, or a
 spoofed `X-Forwarded-For` can bypass per-client limits even when
 `TRUST_PROXY=false`.
+
+The free instance has 512 MB of RAM. Keep `MAX_UPLOAD_BYTES` at 5 MiB: uploads
+are parsed one at a time, because each spawned PDF worker can add hundreds of
+MiB, and a burst of concurrent uploads would otherwise trigger an
+out-of-memory restart.
 
 With `TRUST_PROXY=true` the application ignores the caller-controlled leftmost
 `X-Forwarded-For` entries and keys on the rightmost valid hop - the address
@@ -102,6 +113,9 @@ approval**; no Render deployment was created.
   caller-controlled leftmost entry; `TRUSTED_PROXY_HOPS` tunes the hop count.
   Leaving `TRUST_PROXY=false` elsewhere prevents header spoofing.
 - Ordinary bodies are capped at 1 MiB and uploads at the configured
-  `MAX_UPLOAD_BYTES` plus 1 MiB of multipart headroom.
+  `MAX_UPLOAD_BYTES` plus 1 MiB of multipart headroom (5 MiB by default).
+  Uploads are serialized by a process-wide single-flight slot; concurrent
+  uploads get 503 with `Retry-After: 2`, so a burst cannot exhaust the
+  512 MB free instance.
 - The free tier uses ephemeral storage, so SQLite data does not survive a
   restart.
