@@ -1,47 +1,70 @@
-"""Bounded PDF text extraction."""
+"""Hard-bounded PDF extraction in a killable spawned worker."""
 
 from __future__ import annotations
 
-import io
+import multiprocessing
 import time
-from typing import Any
+from multiprocessing.connection import Connection
+from multiprocessing.process import BaseProcess
 
-from backend.app.security import MAX_DOCUMENT_CHARS
+from backend.app.pdf_parser import (
+    EXTRACTION_BUDGET_SECONDS,
+    MAX_PAGES,
+    MAX_STREAM_BYTES,
+    PdfTooComplexError,
+    parse_pdf_text,
+)
 
-MAX_PAGES = 20
-MAX_STREAM_BYTES = 1_000_000
-EXTRACTION_BUDGET_SECONDS = 4.0
+__all__ = [
+    "EXTRACTION_BUDGET_SECONDS",
+    "EXTRACTION_TIMEOUT_SECONDS",
+    "MAX_PAGES",
+    "MAX_STREAM_BYTES",
+    "PdfTooComplexError",
+    "extract_pdf_text",
+]
+
+EXTRACTION_TIMEOUT_SECONDS = 6.0
 
 
-class PdfTooComplexError(ValueError):
-    """Raised when a PDF exceeds the extraction resource limits."""
+def _extract_worker(data: bytes, result: Connection) -> None:
+    """Run ``parse_pdf_text`` in the spawned child.
+
+    Args:
+        data: The PDF bytes.
+        result: The write end of the result pipe.
+    """
+    try:
+        result.send(("ok", parse_pdf_text(data)))
+    except PdfTooComplexError as exc:
+        result.send(("complex", str(exc)))
+    except Exception as exc:  # noqa: BLE001 - report the class only, never data
+        result.send(("error", type(exc).__name__))
+    finally:
+        result.close()
 
 
-def _limits() -> dict[str, Any]:
-    """Return pypdf limits sized for a 50,000-character text document."""
-    return {
-        "maximum_declared_stream_length": 10_000_000,
-        "array_based_stream_maximum_output_length": MAX_STREAM_BYTES,
-        "array_maximum_element_count": 10_000,
-        "dictionary_maximum_element_count": 10_000,
-        "jbig2_maximum_output_length": MAX_STREAM_BYTES,
-        "lzw_maximum_output_length": MAX_STREAM_BYTES,
-        "run_length_maximum_output_length": MAX_STREAM_BYTES,
-        "zlib_maximum_output_length": MAX_STREAM_BYTES,
-        "brotli_maximum_output_length": MAX_STREAM_BYTES,
-        "image_maximum_buffer_size": 10_000_000,
-        "stream_filters_maximum_length": 4,
-        "stream_decoding_work_maximum_length": MAX_STREAM_BYTES * 2,
-        "stream_parsing_work_maximum_count": 50_000,
-        "page_tree_maximum_entries": 1_000,
-        "page_tree_maximum_depth": 50,
-        "page_tree_maximum_page_entries": 10_000,
-        "xform_maximum_invocations_per_extraction": 50,
-    }
+def _stop(process: BaseProcess) -> None:
+    """Terminate and reap ``process`` so no worker is left behind.
+
+    Args:
+        process: The extraction worker.
+    """
+    if process.is_alive():
+        process.terminate()
+    process.join(1.0)
+    if process.is_alive():
+        process.kill()
+        process.join()
+    process.close()
 
 
 def extract_pdf_text(data: bytes) -> str:
-    """Extract text from a PDF within page, stream and time bounds.
+    """Extract text from a PDF within a hard wall-clock bound.
+
+    The pypdf work runs in a spawned worker with a hard timeout, so a
+    pathological page cannot pin the API worker past the bound even if the
+    in-process character and time visitor never fires.
 
     Args:
         data: The PDF bytes.
@@ -50,38 +73,31 @@ def extract_pdf_text(data: bytes) -> str:
         The extracted text, capped at ``MAX_DOCUMENT_CHARS + 1`` characters.
 
     Raises:
-        PdfTooComplexError: When the PDF exceeds the page or resource limits.
+        PdfTooComplexError: When the PDF exceeds the page, resource or
+            wall-clock limits, or the worker dies before reporting.
+        ValueError: When the PDF is malformed.
     """
-    from pypdf import PdfReader, apply_configuration
-    from pypdf.errors import LimitReachedError
-
-    deadline = time.monotonic() + EXTRACTION_BUDGET_SECONDS
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_extract_worker, args=(data, sender), daemon=True
+    )
+    deadline = time.monotonic() + EXTRACTION_TIMEOUT_SECONDS
     try:
-        with apply_configuration(**_limits()):
-            reader = PdfReader(
-                io.BytesIO(data),
-                strict=False,
-                root_object_recovery_limit=100,
-                xref_stream_maximum_entries=100_000,
-            )
-            pages = reader.pages
-            if len(pages) > MAX_PAGES:
-                raise PdfTooComplexError(
-                    f"PDF has more than {MAX_PAGES} pages"
-                )
-            if time.monotonic() > deadline:
-                raise PdfTooComplexError("PDF too complex")
-            parts: list[str] = []
-            total = 0
-            for page in pages:
-                if time.monotonic() > deadline:
-                    raise PdfTooComplexError("PDF too complex")
-                text = page.extract_text() or ""
-                remaining = MAX_DOCUMENT_CHARS + 1 - total
-                parts.append(text[:remaining])
-                total += len(parts[-1])
-                if total > MAX_DOCUMENT_CHARS:
-                    break
-            return "\n".join(parts).strip()
-    except LimitReachedError as exc:
-        raise PdfTooComplexError("PDF too complex") from exc
+        process.start()
+        sender.close()
+        if not receiver.poll(max(0.0, deadline - time.monotonic())):
+            raise PdfTooComplexError("PDF too complex")
+        try:
+            status, payload = receiver.recv()
+        except EOFError as exc:
+            raise PdfTooComplexError("PDF too complex") from exc
+    finally:
+        if process.pid is not None:
+            _stop(process)
+        receiver.close()
+    if status == "ok":
+        return str(payload)
+    if status == "complex":
+        raise PdfTooComplexError(str(payload))
+    raise ValueError("could not parse PDF")

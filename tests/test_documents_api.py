@@ -12,7 +12,12 @@ from backend.app import retrieval
 from backend.app.config import settings
 from backend.app.pdf_text import MAX_PAGES
 from backend.app.security import MAX_DOCUMENT_CHARS
-from tests.pdf_fixtures import flate_bomb_pdf, many_pages_pdf
+from tests.pdf_fixtures import (
+    flate_bomb_pdf,
+    many_pages_pdf,
+    text_pdf,
+    xobject_bomb_pdf,
+)
 
 
 def _pdf_bytes(text: str) -> bytes:
@@ -222,6 +227,42 @@ def test_pdf_over_page_limit_is_422(
 
     assert response.status_code == 422
     assert "pages" in response.json()["detail"]
+
+
+def test_pdf_xobject_bomb_is_422_within_a_hard_bound(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """A Form-XObject bomb is killed by the worker timeout, never hangs."""
+    started = time.monotonic()
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={"file": ("xobject.pdf", xobject_bomb_pdf(), "application/pdf")},
+    )
+
+    assert response.status_code == 422
+    assert "too complex" in response.json()["detail"]
+    assert time.monotonic() - started < 10.0
+
+
+def test_pdf_text_over_the_character_cap_is_422(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """Extracted text beyond the cap is rejected, never silently truncated."""
+    response = client.post(
+        "/documents/upload",
+        headers=auth_headers,
+        files={
+            "file": (
+                "dense.pdf",
+                text_pdf("A" * (MAX_DOCUMENT_CHARS + 100)),
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 422
+    assert str(MAX_DOCUMENT_CHARS) in response.json()["detail"]
 
 
 def test_upload_searchable_pdf(

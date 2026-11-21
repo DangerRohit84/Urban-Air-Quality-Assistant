@@ -40,10 +40,11 @@ assistant refuses rather than inventing a citation."
 ## 2:10 - 2:40 - Add a document
 
 "Upload a PDF - the extracted text, up to 50,000 characters, is chunked and
-added to your private corpus. PDFs over 20 pages are rejected, and documents
+added to your private corpus. PDFs over 20 pages, or PDFs whose extraction
+outruns the timeout, are rejected, and documents
 are owner-scoped, so another account can never retrieve them."
 
 ## 2:40 - 3:00 - Wrap up
 
 "Export the plan as Markdown, or deploy the same image to Render. The whole
-gate - ruff, mypy, 356 tests, 93% coverage - runs locally with one command."
+gate - ruff, mypy, 365 tests, 92% coverage - runs locally with one command."

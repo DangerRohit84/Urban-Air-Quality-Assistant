@@ -142,6 +142,23 @@ def test_documented_uvicorn_commands_disable_proxy_headers() -> None:
         assert "--no-proxy-headers" in line, f"{name}: {line}"
 
 
+def test_readme_documents_python_311_and_cross_platform_setup() -> None:
+    """The quickstart names Python 3.11+ and shell-correct copy commands."""
+    readme = README.read_text(encoding="utf-8")
+    bare_unix_copy = [
+        line
+        for line in readme.splitlines()
+        if line.strip() == "cp .env.example .env"
+    ]
+
+    assert "Python 3.11" in readme
+    assert "py -3.11 -m venv .venv" in readme
+    assert "copy .env.example .env" in readme
+    assert "Copy-Item .env.example .env" in readme
+    assert "cp .env.example .env" in readme
+    assert not bare_unix_copy
+
+
 def test_every_config_env_var_is_documented() -> None:
     """Every environment variable read by ``config.py`` appears in the guide."""
     text = DEPLOYMENT.read_text(encoding="utf-8")

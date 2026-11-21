@@ -82,6 +82,56 @@ def flate_bomb_pdf(size: int = 8_000_000) -> bytes:
     return _assemble(objects)
 
 
+def xobject_bomb_pdf(invocations: int = 50, payload_size: int = 999_000) -> bytes:
+    """Build a small PDF whose Form XObjects expand into tens of megabytes.
+
+    Every form stream decompresses under the 1 MB stream cap, but the page
+    draws all of them, so naive extraction spends minutes concatenating text.
+
+    Args:
+        invocations: The number of Form XObjects drawn on the page.
+        payload_size: The uncompressed text bytes inside each form.
+
+    Returns:
+        The complete PDF bytes.
+    """
+    drawing = " ".join(f"/X{index} Do" for index in range(1, invocations + 1))
+    content = drawing.encode("latin-1")
+    forms: list[bytes] = []
+    for _ in range(invocations):
+        payload = b"BT /F1 12 Tf 72 720 Td (" + b"A" * payload_size + b") Tj ET"
+        stream = zlib.compress(payload)
+        forms.append(
+            b"<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 5 0 R >> >> /Length "
+            + str(len(stream)).encode()
+            + b" /Filter /FlateDecode >>\nstream\n"
+            + stream
+            + b"\nendstream"
+        )
+    xobjects = " ".join(
+        f"/X{index} {5 + index} 0 R" for index in range(1, invocations + 1)
+    )
+    page = (
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        f"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> "
+        f"/XObject << {xobjects} >> >> >>"
+    ).encode()
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        page,
+        b"<< /Length "
+        + str(len(content)).encode()
+        + b" >>\nstream\n"
+        + content
+        + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        *forms,
+    ]
+    return _assemble(objects)
+
+
 def many_pages_pdf(count: int) -> bytes:
     """Build a PDF with ``count`` empty text pages.
 

@@ -29,13 +29,24 @@ token.
 
 ## Quickstart
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate        # Windows
+The app requires **Python 3.11 or newer** (developed and tested on 3.11.9). On
+Windows the default `python` may still be 3.10, so create the environment with
+the versioned launcher:
+
+```bat
+py -3.11 -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
+copy .env.example .env
 uvicorn backend.app.main:app --reload --port 8000 --no-proxy-headers
 ```
+
+In PowerShell, use `Copy-Item .env.example .env` instead of `copy`. On macOS or
+Linux, create the environment with `python3.11 -m venv .venv`, activate it with
+`source .venv/bin/activate`, install the requirements, and copy the template
+with `cp .env.example .env`. Importing `backend/app/main.py` on an older
+interpreter fails immediately with an explicit version message instead of an
+opaque dependency import error.
 
 Then open http://localhost:8000. `--no-proxy-headers` stops Uvicorn from
 rewriting the client address from `X-Forwarded-For`, so `TRUST_PROXY` remains
@@ -50,7 +61,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 - Health p50 2.7 ms, p95 3.8 ms; the test asserts a hard bound of 1.0 s.
 - Cached search p50 0.6 ms, p95 0.8 ms; the test asserts a hard bound of 1.0 s.
 - Repeat searches hit the TF-IDF cache (54 hits / 1 miss in the sample, > 95%).
-- Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 93%.
+- Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 92%.
 - Retrieval relevance: a hit grounds a question only when its TF-IDF cosine is
   at least `0.15` **and** at least `30%` of the query's content tokens appear
   in the hit's text/title. Content tokens exclude stop words and generic filler
@@ -75,7 +86,7 @@ Measured on the Windows development host by `tests/test_efficiency.py` and a
 
 ## Tests
 
-Test suite: **356 tests** collected by `pytest --collect-only`; the quality
+Test suite: **365 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -92,8 +103,8 @@ Backend modules under `backend/app/`:
 - `aqi.py`, `cities.py`, `factors.py`, `impact.py`, `routines.py`,
   `hacks.py`, `alternatives.py`, `plans.py`, `prompting.py`.
 - `chunking.py`, `corpus.py`, `retrieval.py`, `retrieval_index.py`,
-  `retrieval_fallback.py`, `upload_guard.py`, `pdf_text.py`,
-  `rate_limiter.py`.
+  `retrieval_fallback.py`, `upload_guard.py`, `pdf_parser.py`, `pdf_text.py`,
+  `rate_limiter.py`, `version_guard.py`.
 - `auth/` (`passwords.py`, `tokens.py`, `service.py`, `dependencies.py`),
   `llm/` (`base.py`, `factory.py`, `local_synth.py`, `gemini.py`,
   `openai_compat.py`, `http_json.py`), `air/` (`provider.py`,
@@ -143,8 +154,9 @@ Test modules under `tests/`:
 - `/health` exposes the provider, cache stats, store counts and uptime.
 - TF-IDF is fitted once per corpus and cached; document changes invalidate it.
 - Uploads are capped and parsed in a worker thread (`asyncio.to_thread`).
-- PDF parsing is bounded to 20 pages, a 4-second extraction budget and a 1 MB
-  decompressed-stream cap; larger or bomb-like PDFs return 422.
+- PDF parsing is bounded to 20 pages, a 4-second in-process budget, a
+  6-second hard worker-process timeout (the worker is killed on expiry) and a
+  1 MB decompressed-stream cap; larger or bomb-like PDFs return 422.
 
 ## Accessibility
 

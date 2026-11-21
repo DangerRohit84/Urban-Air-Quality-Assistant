@@ -35,8 +35,9 @@ returns a cited answer.
 Uploaded PDF text is capped at 50,000 characters after sanitization
 (`MAX_DOCUMENT_CHARS`); longer extracted text returns 422 rather than being
 silently truncated. PDFs over 20 pages, or extraction that exceeds the
-4-second budget or 1 MB decompressed-stream cap, return 422 instead of
-consuming unbounded worker resources.
+4-second in-process budget, the 6-second hard worker-process timeout or the
+1 MB decompressed-stream cap, return 422 instead of consuming unbounded worker
+resources.
 
 ## Local verification
 
