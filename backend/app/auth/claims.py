@@ -57,9 +57,7 @@ def encode_claims(subject: str, expires_ns: int, jti: str, secret: str) -> str:
         The encoded ``payload.signature`` token.
     """
     payload = {"sub": subject, "exp": expires_ns, "jti": jti}
-    encoded = b64encode(
-        json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    )
+    encoded = b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     signature = hmac.new(
         secret.encode("utf-8"), encoded.encode("ascii"), hashlib.sha256
     ).digest()

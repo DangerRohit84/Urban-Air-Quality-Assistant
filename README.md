@@ -1,5 +1,10 @@
 # Urban Air Quality Assistant
 
+[![CI](https://github.com/DangerRohit84/Urban-Air-Quality-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/DangerRohit84/Urban-Air-Quality-Assistant/actions/workflows/ci.yml)
+[![Security](https://github.com/DangerRohit84/Urban-Air-Quality-Assistant/actions/workflows/security.yml/badge.svg)](https://github.com/DangerRohit84/Urban-Air-Quality-Assistant/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+
 FastAPI + vanilla-JS assistant that turns a user's city, household and
 lifestyle profile plus CPCB AQI context into personalized low-emission
 routines, indoor air hacks, sustainable alternatives, quantified impact and
@@ -69,7 +74,8 @@ The efficiency tests keep hard ceilings: a 50-request sample of `GET /health`
 and a cached corpus search measures health p50 2.7 ms / p95 3.8 ms and cached
 search p50 0.6 ms / p95 0.8 ms, both asserted against a 1.0 s bound. Repeat
 searches hit the TF-IDF cache (54 hits / 1 miss in the sample, > 95%).
-Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 92%.
+Coverage gate: combined line+branch coverage >= 89% (`fail_under = 89`); measured
+93.4% line, 80.8% branch and 91.6% combined.
 - Retrieval relevance: a hit grounds a question only when its TF-IDF cosine is
   at least `0.15` **and** at least `30%` of the query's content tokens appear
   in the hit's text/title. Content tokens exclude stop words and generic filler
@@ -97,7 +103,7 @@ Coverage gate: total line coverage >= 76% (`TOTAL >= 76%`), currently 92%.
 
 ## Tests
 
-Test suite: **394 tests** collected by `pytest --collect-only`; the quality
+Test suite: **417 tests** collected by `pytest --collect-only`; the quality
 gate requires at least 200.
 
 ```bash
@@ -127,7 +133,8 @@ home/login, register, dashboard, documents and profile states. See
 Backend modules under `backend/app/`:
 
 - `access.py`, `body_limit.py`, `config.py`, `errors.py`, `main.py`,
-  `metrics.py`, `middleware.py`, `models.py`, `profile.py`, `security.py`.
+  `metrics.py`, `middleware.py`, `models.py`, `profile.py`, `security.py`,
+  `security_log.py`.
 - `aqi.py`, `cities.py`, `factors.py`, `impact.py`, `routines.py`,
   `hacks.py`, `alternatives.py`, `plans.py`, `prompting.py`.
 - `chunking.py`, `corpus.py`, `retrieval.py`, `retrieval_index.py`,
@@ -138,10 +145,11 @@ Backend modules under `backend/app/`:
   `gemini.py`, `openai_compat.py`, `http_json.py`), `air/` (`provider.py`,
   `openweather.py`).
 - `storage/` (`protocol.py`, `schema.py`, `migrations.py`, `sqlite_base.py`,
-  `sqlite_rows.py`, `revocations.py`, `memory.py`, `sqlite_store.py`,
-  `store.py`).
+  `sqlite_rows.py`, `sqlite_users.py`, `sqlite_content.py`, `sqlite_values.py`,
+  `revocations.py`, `memory.py`, `sqlite_store.py`, `store.py`).
 - `routes/` (`system.py`, `auth.py`, `profile.py`, `air.py`, `plans.py`,
-  `export.py`, `ask.py`, `documents.py`, `uploads.py`).
+  `export.py`, `ask.py`, `documents.py`, `document_store.py`, `uploads.py`,
+  `upload_events.py`, `common.py`).
 - `schemas/` (`auth.py`, `profile.py`, `air.py`, `documents.py`, `ask.py`,
   `plans.py`, `health.py`).
 
@@ -153,7 +161,7 @@ Test modules under `tests/`:
   `test_revocation.py`, `test_boundaries.py`, `test_profile.py`, `test_aqi.py`,
   `test_air_api.py`, `test_impact.py`, `test_plans.py`,
   `test_export.py`, `test_retrieval.py`, `test_documents_api.py`,
-  `test_prompting.py`, `test_llm_providers.py`, `test_ask.py`,
+  `test_uploads.py`, `test_prompting.py`, `test_llm_providers.py`, `test_ask.py`,
   `test_frontend_a11y.py`, `test_frontend_features.py`,
   `test_code_quality.py`, `test_docs_claims.py`, `test_efficiency.py`,
   `test_quality_gates.py`, `test_packaging.py`, `test_benchmark_script.py`.
@@ -177,6 +185,18 @@ Test modules under `tests/`:
 - Security headers, proxy-aware sliding-window rate limiting with `Retry-After`,
   and bounded body reads and PDF parses. Validation errors return only
   `loc`/`msg`/`type`, never the submitted input.
+- Security events (rate-limit hits, auth failures, unhandled errors and
+  rejected uploads) are emitted as single-line JSON on the `security` logger,
+  without tokens, emails or document text.
+- Content-Security-Policy restricts scripts and styles to the app origin,
+  `object-src` is disabled, and `Cross-Origin-Opener-Policy` plus
+  `Cross-Origin-Resource-Policy` isolate the app from cross-origin embedding.
+- Rotating `AUTH_SECRET` invalidates every issued bearer token; `SECURITY.md`
+  documents the rotation and deployment checklist.
+- `SECURITY.md` also records the data inventory and retention/deletion paths
+  (including account deletion within 7 days), exactly what an optional LLM or
+  weather provider receives, the STRIDE threat model, incident response and
+  residual risks.
 - Retrieved sources are wrapped in escaped `<source>` elements under an
   instruction-hierarchy banner, so document text cannot inject prompt lines or
   fake citation markers.
@@ -258,3 +278,10 @@ Docker container. The image measures 171.5 MiB and passes the benchmark's
 `python scripts/benchmark.py` (see `docs/BENCHMARKS.md`). The Render deploy URL
 is pending explicit user approval; no Render deployment was created by this
 work.
+
+## Contributing
+
+See `CONTRIBUTING.md` for setup, the local gate
+(`python scripts/check_quality.py`) and pull-request expectations. Report
+vulnerabilities privately as described in `SECURITY.md`, and see
+`CHANGELOG.md` for release history.

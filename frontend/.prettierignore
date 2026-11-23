@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+# The legacy shell and stylesheet keep their hand-written formatting so the
+# module split stays a focused diff; the JavaScript modules are checked.
+index.html
+styles.css

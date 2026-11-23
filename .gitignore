@@ -29,3 +29,14 @@ e2e/node_modules/
 e2e/.tmp/
 playwright-report/
 test-results/
+
+# Frontend tooling caches
+frontend/node_modules/
+frontend/.eslintcache
+
+# Agent, editor and demo scratch space
+.ai/
+.superpowers/
+.vscode/
+.idea/
+docs/demo/

@@ -13,12 +13,43 @@ SEASONS = frozenset({"winter", "summer", "monsoon", "post_monsoon"})
 class AirContextIn(BaseModel):
     """Payload accepted by ``POST /air/context``."""
 
-    city: str = Field(min_length=1, max_length=80)
-    band: str = Field(max_length=40)
-    season: str = Field(max_length=40)
-    value: int | None = Field(default=None, ge=0, le=1000)
-    pm25: float | None = Field(default=None, ge=0, le=2000)
-    pm10: float | None = Field(default=None, ge=0, le=2000)
+    city: str = Field(
+        min_length=1,
+        max_length=80,
+        description="Known Indian city name, e.g. `Delhi`.",
+        examples=["Delhi"],
+    )
+    band: str = Field(
+        max_length=40,
+        description="CPCB band name, e.g. `poor`.",
+        examples=["poor"],
+    )
+    season: str = Field(
+        max_length=40,
+        description="One of winter, summer, monsoon, post_monsoon.",
+        examples=["winter"],
+    )
+    value: int | None = Field(
+        default=None,
+        ge=0,
+        le=1000,
+        description="Optional CPCB AQI value (0-1000).",
+        examples=[250],
+    )
+    pm25: float | None = Field(
+        default=None,
+        ge=0,
+        le=2000,
+        description="Optional PM2.5 concentration in ug/m3.",
+        examples=[120.0],
+    )
+    pm10: float | None = Field(
+        default=None,
+        ge=0,
+        le=2000,
+        description="Optional PM10 concentration in ug/m3.",
+        examples=[180.0],
+    )
 
     @field_validator("band")
     @classmethod
@@ -60,25 +91,51 @@ class AirContextIn(BaseModel):
 class AirContextResponse(BaseModel):
     """Payload returned by ``POST /air/context``."""
 
-    user_id: str
-    city: str
-    band: str
-    value: int | None
-    pm25: float | None
-    pm10: float | None
-    season: str
-    observed_at: str
-    source: str
+    user_id: str = Field(description="Owner user id.", examples=["user-0001"])
+    city: str = Field(description="Resolved city name.", examples=["Delhi"])
+    band: str = Field(description="Saved CPCB band name.", examples=["poor"])
+    value: int | None = Field(
+        description="Saved AQI value, when supplied.", examples=[250]
+    )
+    pm25: float | None = Field(
+        description="Saved PM2.5, when supplied.", examples=[120.0]
+    )
+    pm10: float | None = Field(
+        description="Saved PM10, when supplied.", examples=[180.0]
+    )
+    season: str = Field(description="Saved season.", examples=["winter"])
+    observed_at: str = Field(
+        description="ISO-8601 save timestamp (UTC).",
+        examples=["2026-01-02T03:04:05+00:00"],
+    )
+    source: str = Field(description="Context origin, e.g. `user`.", examples=["user"])
 
 
 class AirLiveResponse(BaseModel):
     """Payload returned by ``GET /air``."""
 
-    city: str
-    source: str
-    band: str
-    value: int | None
-    pm25: float | None
-    pm10: float | None
-    fallback: str
-    native_index: int | None = None
+    city: str = Field(description="Resolved city name.", examples=["Delhi"])
+    source: str = Field(
+        description="`live`, `offline` or `not_configured`.",
+        examples=["offline"],
+    )
+    band: str = Field(
+        description="CPCB band name; empty when unknown.",
+        examples=["poor"],
+    )
+    value: int | None = Field(description="AQI value, when known.", examples=[250])
+    pm25: float | None = Field(
+        description="PM2.5 in ug/m3, when known.", examples=[120.0]
+    )
+    pm10: float | None = Field(
+        description="PM10 in ug/m3, when known.", examples=[180.0]
+    )
+    fallback: str = Field(
+        description="Human-readable fallback explanation.",
+        examples=["live AQI not configured"],
+    )
+    native_index: int | None = Field(
+        default=None,
+        description="Provider-native index, when reported.",
+        examples=[4],
+    )

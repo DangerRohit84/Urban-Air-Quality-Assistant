@@ -1,12 +1,21 @@
 .git
+.github
 .venv
 .env
 .env.*
 .ai
 .superpowers
-e2e/node_modules/
-e2e/test-results/
-e2e/playwright-report/
+e2e
+docs
+tests
+frontend/node_modules
+# Frontend build tooling is not a runtime asset and must not ship in the image.
+frontend/package.json
+frontend/package-lock.json
+frontend/eslint.config.js
+frontend/.prettierrc.json
+frontend/.prettierignore
+frontend/.gitignore
 .pytest_cache
 .mypy_cache
 .ruff_cache
@@ -15,8 +24,8 @@ __pycache__
 .coverage
 .coverage.*
 htmlcov
-docs
-tests
-data
 *.db
 *.sqlite
+# Root runtime database directory only: backend/data/seed_corpus.json ships
+# with the image and must not be excluded.
+/data

@@ -151,9 +151,7 @@ def test_readme_documents_python_311_and_cross_platform_setup() -> None:
     """The quickstart names Python 3.11+ and shell-correct copy commands."""
     readme = README.read_text(encoding="utf-8")
     bare_unix_copy = [
-        line
-        for line in readme.splitlines()
-        if line.strip() == "cp .env.example .env"
+        line for line in readme.splitlines() if line.strip() == "cp .env.example .env"
     ]
 
     assert "Python 3.11" in readme

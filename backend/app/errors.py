@@ -6,6 +6,31 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from backend.app.security_log import log_event
+
+
+def log_unhandled_error(request: Request, exc: Exception) -> None:
+    """Emit one metadata-only ``unhandled_error`` event per request.
+
+    The middleware and the exception handler can both see the same failure,
+    so the flag on ``request.state`` keeps the event single-shot. Only the
+    path, method and exception class are recorded: never the message, body,
+    token or document text.
+
+    Args:
+        request: The request that failed.
+        exc: The exception that escaped the route.
+    """
+    if getattr(request.state, "unhandled_error_logged", False):
+        return
+    request.state.unhandled_error_logged = True
+    log_event(
+        "unhandled_error",
+        path=request.url.path,
+        method=request.method,
+        error=type(exc).__name__,
+    )
+
 
 def install_error_handlers(app: FastAPI) -> None:
     """Install the application-wide exception handlers.
@@ -49,6 +74,7 @@ def install_error_handlers(app: FastAPI) -> None:
         request: Request, exc: Exception
     ) -> JSONResponse:
         """Render any unhandled exception as a bare 500."""
+        log_unhandled_error(request, exc)
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error"},

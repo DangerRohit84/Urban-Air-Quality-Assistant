@@ -111,7 +111,11 @@ approval**; no Render deployment was created.
 ## Production hardening
 
 - Set a strong `AUTH_SECRET`; the per-boot random secret is a development
-  fallback only.
+  fallback only. Rotating it invalidates every outstanding bearer token, so
+  users must sign in again; follow `SECURITY.md` for the incident checklist.
+- Security events (rate-limit hits, auth failures, unhandled errors and
+  rejected uploads) are emitted as JSON on the `security` logger. Ship stdout
+  to your log drain and alert on spikes.
 - Keep `AQI_API_KEY` empty for an offline-first deployment.
 - Front the service with TLS; the security middleware already sends HSTS.
 - Restrict `ALLOWED_ORIGINS` to the public origin in production.

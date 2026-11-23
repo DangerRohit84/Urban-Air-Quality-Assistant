@@ -9,6 +9,12 @@ os.environ.setdefault("LLM_PROVIDER", "local_synth")
 # Keep the suite hermetic: a developer's checked-out .env may raise the cap,
 # and the upload-boundary tests assert the documented 5 MiB default.
 os.environ.setdefault("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024))
+# Force provider keys off: a developer's .env may hold real credentials, which
+# would flip /air from the documented `not_configured` path to a network call
+# and make results depend on the machine. Tests that exercise live providers
+# monkeypatch `settings` directly instead.
+for _provider_key in ("AQI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"):
+    os.environ[_provider_key] = ""
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

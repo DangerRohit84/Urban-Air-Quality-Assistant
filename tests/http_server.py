@@ -26,9 +26,7 @@ class Server:
 
 
 @contextmanager
-def serve(
-    status: int, body: bytes, location: str | None = None
-) -> Iterator[Server]:
+def serve(status: int, body: bytes, location: str | None = None) -> Iterator[Server]:
     """Serve one canned response and record every request.
 
     Args:

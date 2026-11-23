@@ -315,15 +315,15 @@ def test_concurrent_duplicate_registers_admit_one_user(tmp_path: Path) -> None:
     assert repo.count_users() == 1
 
 
-def test_build_repo_selects_backend(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_build_repo_selects_backend(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """``STORE_BACKEND`` selects the memory or SQLite implementation."""
     monkeypatch.setattr(settings, "store_backend", "memory")
     assert isinstance(build_repo(), InMemoryRepo)
 
     monkeypatch.setattr(settings, "store_backend", "sqlite")
-    monkeypatch.setattr(
-        settings, "database_url", f"sqlite:///{tmp_path}/build.db"
-    )
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{tmp_path}/build.db")
     assert isinstance(build_repo(), SQLiteRepo)
 
 

@@ -27,6 +27,7 @@ def test_export_json_returns_owner_payload(
     response = client.get("/export?format=json", headers=auth_headers)
 
     assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
     body = response.json()
     assert body["routines"]
     assert body["hacks"]
@@ -40,6 +41,7 @@ def test_export_markdown_has_headings_and_note(
     response = client.get("/export?format=md", headers=auth_headers)
 
     assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
     text = response.text
     assert "Routines" in text
     assert "Indoor hacks" in text
@@ -59,14 +61,17 @@ def test_export_is_owner_scoped(client: TestClient) -> None:
     ).json()
     owner_headers = {"Authorization": f"Bearer {owner['token']}"}
     other_headers = {"Authorization": f"Bearer {other['token']}"}
-    assert client.put(
-        "/profile", headers=owner_headers, json=PROFILE
-    ).status_code == 200
-    assert client.put(
-        "/profile",
-        headers=other_headers,
-        json={**PROFILE, "commute_mode": "walk", "city": "Mumbai"},
-    ).status_code == 200
+    assert (
+        client.put("/profile", headers=owner_headers, json=PROFILE).status_code == 200
+    )
+    assert (
+        client.put(
+            "/profile",
+            headers=other_headers,
+            json={**PROFILE, "commute_mode": "walk", "city": "Mumbai"},
+        ).status_code
+        == 200
+    )
 
     owner_body = client.get("/export?format=json", headers=owner_headers).json()
     other_body = client.get("/export?format=json", headers=other_headers).json()

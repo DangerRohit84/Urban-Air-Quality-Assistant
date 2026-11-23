@@ -14,16 +14,31 @@ from backend.app.air.provider import LiveAqiReading
 from backend.app.auth.dependencies import require_user_id
 from backend.app.config import settings
 from backend.app.models import AqiContext
+from backend.app.routes.common import AUTH_RESPONSES, BODY_LIMIT_RESPONSE
 from backend.app.schemas.air import (
     AirContextIn,
     AirContextResponse,
     AirLiveResponse,
 )
+from backend.app.schemas.errors import ErrorResponse
 from backend.app.storage.store import get_repo
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["air"])
+
+AIR_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    404: {
+        "model": ErrorResponse,
+        "description": "Unknown city name.",
+    },
+}
+
+AIR_CONTEXT_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    **BODY_LIMIT_RESPONSE,
+}
 
 NOT_CONFIGURED = "not_configured"
 OFFLINE = "offline"
@@ -82,7 +97,9 @@ def _fallback(city: cities.City, user_id: str, source: str) -> AirLiveResponse:
     )
 
 
-@router.post("/air/context", response_model=AirContextResponse)
+@router.post(
+    "/air/context", response_model=AirContextResponse, responses=AIR_CONTEXT_RESPONSES
+)
 def save_context(
     payload: AirContextIn,
     user_id: Annotated[str, Depends(require_user_id)],
@@ -106,7 +123,7 @@ def save_context(
     return AirContextResponse(**saved.to_dict())
 
 
-@router.get("/air", response_model=AirLiveResponse)
+@router.get("/air", response_model=AirLiveResponse, responses=AIR_RESPONSES)
 def get_air(
     q: str,
     user_id: Annotated[str, Depends(require_user_id)],

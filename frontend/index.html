@@ -33,12 +33,12 @@
           <h3>Register</h3>
           <div class="field">
             <label for="reg-email">Email</label>
-            <input id="reg-email" name="email" type="email" autocomplete="email" required aria-describedby="reg-email-hint">
+            <input id="reg-email" name="email" type="email" autocomplete="email" inputmode="email" spellcheck="false" required aria-describedby="reg-email-hint">
             <p id="reg-email-hint" class="hint">Enter a valid email address.</p>
           </div>
           <div class="field">
             <label for="reg-password">Password</label>
-            <input id="reg-password" name="password" type="password" autocomplete="new-password" required aria-describedby="reg-password-hint">
+            <input id="reg-password" name="password" type="password" autocomplete="new-password" spellcheck="false" required aria-describedby="reg-password-hint">
             <p id="reg-password-hint" class="hint">At least 8 characters with a letter and a digit.</p>
           </div>
           <button type="submit" aria-describedby="register-hint">Create account</button>
@@ -49,12 +49,12 @@
           <h3>Sign in</h3>
           <div class="field">
             <label for="login-email">Email</label>
-            <input id="login-email" name="email" type="email" autocomplete="email" required aria-describedby="login-email-hint">
+            <input id="login-email" name="email" type="email" autocomplete="email" inputmode="email" spellcheck="false" required aria-describedby="login-email-hint">
             <p id="login-email-hint" class="hint">The address you registered with.</p>
           </div>
           <div class="field">
             <label for="login-password">Password</label>
-            <input id="login-password" name="password" type="password" autocomplete="current-password" required aria-describedby="login-password-hint">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" spellcheck="false" required aria-describedby="login-password-hint">
             <p id="login-password-hint" class="hint">Your account password.</p>
           </div>
           <button type="submit" aria-describedby="login-hint">Sign in</button>
@@ -255,8 +255,9 @@
 
   <footer class="site-footer" role="contentinfo">
     <p>General information, not medical advice. Built for Prompt Wars.</p>
+    <p><a href="https://github.com/DangerRohit84/Urban-Air-Quality-Assistant/security/policy" target="_blank" rel="noopener noreferrer">Demo data — see Security &amp; Privacy</a></p>
   </footer>
 
-  <script src="/static/app.js"></script>
+  <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

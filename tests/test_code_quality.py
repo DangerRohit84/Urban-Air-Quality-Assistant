@@ -25,11 +25,7 @@ def _backend_modules() -> list[Path]:
     Returns:
         The sortable module paths.
     """
-    return sorted(
-        path
-        for path in BACKEND.rglob("*.py")
-        if path.name != "__init__.py"
-    )
+    return sorted(path for path in BACKEND.rglob("*.py") if path.name != "__init__.py")
 
 
 def _functions(tree: ast.Module) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
@@ -100,9 +96,7 @@ def test_multiline_docstrings_use_google_style_sections() -> None:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in _functions(tree):
             doc = ast.get_docstring(node) or ""
-            if "\n" in doc and not any(
-                header in doc for header in SECTION_HEADERS
-            ):
+            if "\n" in doc and not any(header in doc for header in SECTION_HEADERS):
                 offenders.append(f"{path.relative_to(ROOT)}:{node.lineno}:{node.name}")
 
     assert not offenders, f"docstrings without a section header: {offenders}"

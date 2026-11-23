@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 from backend.app.auth.dependencies import require_user_id
 from backend.app.plans import PlansPayload
+from backend.app.routes.common import AUTH_RESPONSES
 from backend.app.routes.plans import payload_for_user
 from backend.app.schemas.plans import to_response
 
 router = APIRouter(tags=["export"])
 
-FORMATS = frozenset({"md", "json"})
+MARKDOWN_EXAMPLE = "# Your air quality plan\n\n## Routines\n\n- **Filter swap** - ..."
 
 _SECTIONS: tuple[tuple[str, str], ...] = (
     ("Routines", "routines"),
@@ -49,26 +50,39 @@ def _markdown(payload: PlansPayload) -> str:
     return "\n".join(lines)
 
 
-@router.get("/export")
+@router.get(
+    "/export",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "The caller's plan as Markdown (default) or JSON.",
+            "content": {
+                "text/markdown": {
+                    "schema": {"type": "string"},
+                    "example": MARKDOWN_EXAMPLE,
+                },
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/PlansResponse"},
+                },
+            },
+        },
+        **AUTH_RESPONSES,
+    },
+)
 def export(
     user_id: Annotated[str, Depends(require_user_id)],
-    format: str = "md",
-) -> object:
+    export_format: Annotated[str, Query(alias="format", pattern="^(md|json)$")] = "md",
+) -> Response:
     """Export the caller's plan as Markdown or JSON.
 
     Args:
         user_id: The verified owner id.
-        format: The export format, ``md`` or ``json``.
+        export_format: The export format, ``md`` or ``json``.
 
     Returns:
-        The exported document.
-
-    Raises:
-        HTTPException: 422 when the format is unknown.
+        The exported document with its matching media type.
     """
-    if format not in FORMATS:
-        raise HTTPException(status_code=422, detail="unknown format")
     payload = payload_for_user(user_id)
-    if format == "json":
-        return to_response(payload).model_dump()
+    if export_format == "json":
+        return JSONResponse(to_response(payload).model_dump())
     return PlainTextResponse(_markdown(payload), media_type="text/markdown")

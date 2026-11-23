@@ -207,9 +207,7 @@ def test_context_is_owner_scoped(client: TestClient) -> None:
     owner_headers = {"Authorization": f"Bearer {owner['token']}"}
     other_headers = {"Authorization": f"Bearer {other['token']}"}
     assert (
-        client.post(
-            "/air/context", headers=owner_headers, json=CONTEXT
-        ).status_code
+        client.post("/air/context", headers=owner_headers, json=CONTEXT).status_code
         == 200
     )
 
@@ -220,9 +218,7 @@ def test_context_is_owner_scoped(client: TestClient) -> None:
     assert response.json()["band"] != "Poor"
 
 
-def test_invalid_band_is_422(
-    client: TestClient, auth_headers: dict[str, str]
-) -> None:
+def test_invalid_band_is_422(client: TestClient, auth_headers: dict[str, str]) -> None:
     """An unknown band is rejected."""
     response = client.post(
         "/air/context",
@@ -335,3 +331,17 @@ def test_openweather_adapter_parses_payload() -> None:
         "https://api.openweathermap.org/data/2.5/air_pollution"
         "?lat=28.6139&lon=77.209&appid=key"
     ]
+
+
+def test_suite_environment_has_no_live_provider_keys(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """The suite is hermetic even when the checkout has a real .env file."""
+    assert settings.aqi_api_key == ""
+    assert settings.gemini_api_key == ""
+    assert settings.openai_api_key == ""
+
+    response = client.get("/air?q=Delhi", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "not_configured"

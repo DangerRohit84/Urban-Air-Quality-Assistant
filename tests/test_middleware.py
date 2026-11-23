@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -62,6 +65,40 @@ def test_unhandled_exception_is_bare_500_with_headers() -> None:
     assert "x-process-time" not in response.headers
 
 
+def test_unhandled_error_emits_one_metadata_only_event(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A crash logs exactly one event without the message or token."""
+    caplog.set_level(logging.WARNING, logger="security")
+    app = create_app()
+    marker = "SECRET-MARKER-9f3c"
+    token = "super-secret-bearer-token"
+
+    @app.get("/boom-secret")
+    def boom_secret() -> None:
+        raise RuntimeError(f"boom {marker}")
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get("/boom-secret", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 500
+    events = [
+        json.loads(record.getMessage())
+        for record in caplog.records
+        if record.name == "security" and "unhandled_error" in record.getMessage()
+    ]
+    assert events == [
+        {
+            "event": "unhandled_error",
+            "path": "/boom-secret",
+            "method": "GET",
+            "error": "RuntimeError",
+        }
+    ]
+    assert marker not in caplog.text
+    assert token not in caplog.text
+
+
 def test_200_carries_rate_limit_headers() -> None:
     """A successful response reports the rate-limit budget."""
     client = _make_client(limit=10)
@@ -82,6 +119,18 @@ def test_health_is_exempt_from_rate_limiting() -> None:
         response = client.get("/health")
         assert response.status_code == 200
         assert response.headers["x-ratelimit-remaining"] == "1"
+
+
+def test_root_is_rate_limited_after_one_request() -> None:
+    """The frontend shell consumes the budget and then returns 429."""
+    client = _make_client(limit=1)
+
+    first = client.get("/")
+    rejected = client.get("/")
+
+    assert first.status_code == 200
+    assert rejected.status_code == 429
+    assert rejected.headers["retry-after"] == "60"
 
 
 def test_limit_plus_one_requests_is_429() -> None:
@@ -142,18 +191,10 @@ def test_trusted_proxy_uses_the_rightmost_forwarded_hop(
     monkeypatch.setattr(settings, "trusted_proxy_hops", 1)
     client = TestClient(create_app())
 
-    first = client.get(
-        "/auth/me", headers={"X-Forwarded-For": "1.1.1.1, 203.0.113.9"}
-    )
-    second = client.get(
-        "/auth/me", headers={"X-Forwarded-For": "2.2.2.2, 203.0.113.9"}
-    )
-    third = client.get(
-        "/auth/me", headers={"X-Forwarded-For": "3.3.3.3, 203.0.113.9"}
-    )
-    other = client.get(
-        "/auth/me", headers={"X-Forwarded-For": "4.4.4.4, 198.51.100.7"}
-    )
+    first = client.get("/auth/me", headers={"X-Forwarded-For": "1.1.1.1, 203.0.113.9"})
+    second = client.get("/auth/me", headers={"X-Forwarded-For": "2.2.2.2, 203.0.113.9"})
+    third = client.get("/auth/me", headers={"X-Forwarded-For": "3.3.3.3, 203.0.113.9"})
+    other = client.get("/auth/me", headers={"X-Forwarded-For": "4.4.4.4, 198.51.100.7"})
 
     assert first.status_code == 401
     assert second.status_code == 401
@@ -198,9 +239,7 @@ def test_trusted_proxy_ignores_empty_and_garbage_hops(
     first = client.get(
         "/auth/me", headers={"X-Forwarded-For": ", not-an-ip, 203.0.113.9"}
     )
-    second = client.get(
-        "/auth/me", headers={"X-Forwarded-For": "junk, 203.0.113.9"}
-    )
+    second = client.get("/auth/me", headers={"X-Forwarded-For": "junk, 203.0.113.9"})
     fallback = client.get("/auth/me", headers={"X-Forwarded-For": "junk"})
     repeated = client.get("/auth/me", headers={"X-Forwarded-For": "junk"})
 

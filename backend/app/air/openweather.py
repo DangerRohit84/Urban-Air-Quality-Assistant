@@ -72,10 +72,7 @@ class OpenWeatherProvider:
             KeyError: When the payload is malformed.
             ValueError: When the native index is out of range.
         """
-        url = (
-            f"{self.base_url}?lat={city.lat}&lon={city.lon}"
-            f"&appid={self.api_key}"
-        )
+        url = f"{self.base_url}?lat={city.lat}&lon={city.lon}" f"&appid={self.api_key}"
         with self._client(url, timeout=TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
         entry = payload["list"][0]

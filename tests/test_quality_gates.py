@@ -28,11 +28,17 @@ def _load_runner() -> object:
     return module
 
 
+def _remove_nested_coverage() -> None:
+    """Remove nested coverage files, including pytest-cov parallel shards."""
+    for path in ROOT.glob(".coverage.nested*"):
+        path.unlink(missing_ok=True)
+
+
 def test_coverage_floor_is_enforced() -> None:
     """The runner reads the declared floor and parses coverage output."""
     module = _load_runner()
 
-    assert module.read_coverage_floor() == 76.0  # type: ignore[attr-defined]
+    assert module.read_coverage_floor() == 89.0  # type: ignore[attr-defined]
     sample = "TOTAL 1603 87 95%"
     assert module.parse_total_coverage(sample) == 95.0  # type: ignore[attr-defined]
 
@@ -45,6 +51,7 @@ def test_check_quality_script_passes() -> None:
     env = dict(os.environ)
     env[SUBPROCESS_FLAG] = "1"
     env["COVERAGE_FILE"] = str(ROOT / ".coverage.nested")
+    _remove_nested_coverage()
     try:
         result = subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
             [sys.executable, str(CHECK_QUALITY)],
@@ -55,8 +62,6 @@ def test_check_quality_script_passes() -> None:
             check=False,
         )
     finally:
-        nested = ROOT / ".coverage.nested"
-        if nested.exists():
-            nested.unlink()
+        _remove_nested_coverage()
 
     assert result.returncode == 0, result.stdout + result.stderr

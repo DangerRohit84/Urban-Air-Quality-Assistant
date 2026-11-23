@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.app.auth.dependencies import load_profile_or_default, require_user_id
 from backend.app.plans import AREAS, PlansPayload, build_plans
 from backend.app.retrieval import search
+from backend.app.routes.common import AUTH_RESPONSES
 from backend.app.schemas.plans import PlansResponse, to_response
 from backend.app.storage.store import get_repo
 
@@ -32,7 +33,7 @@ def payload_for_user(user_id: str) -> PlansPayload:
     return build_plans(profile, context, hits)
 
 
-@router.get("/plans", response_model=PlansResponse)
+@router.get("/plans", response_model=PlansResponse, responses=AUTH_RESPONSES)
 def get_plans(
     user_id: Annotated[str, Depends(require_user_id)],
     area: str | None = None,

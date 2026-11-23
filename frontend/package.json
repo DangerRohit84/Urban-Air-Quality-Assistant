@@ -1,0 +1,17 @@
+{
+  "name": "urban-air-quality-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Native ES modules, lint, and format checks for the Urban Air Quality Assistant frontend.",
+  "scripts": {
+    "lint": "eslint .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1"
+  }
+}

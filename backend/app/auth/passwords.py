@@ -112,9 +112,7 @@ def verify_password(password: str, stored: str | None) -> bool:
     if parsed is None:
         return False
     iterations, salt, expected = parsed
-    actual = hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, iterations
-    )
+    actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
     if iterations < ITERATIONS:
         # Equalize the legacy path with the current work factor so failed
         # logins do not reveal which accounts still carry an old hash.

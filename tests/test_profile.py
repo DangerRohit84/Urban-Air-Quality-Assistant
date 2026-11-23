@@ -80,9 +80,7 @@ def test_commute_km_above_200_is_422(
     assert response.status_code == 422
 
 
-def test_empty_city_is_422(
-    client: TestClient, auth_headers: dict[str, str]
-) -> None:
+def test_empty_city_is_422(client: TestClient, auth_headers: dict[str, str]) -> None:
     """An empty city is rejected."""
     response = client.put(
         "/profile",
@@ -93,9 +91,7 @@ def test_empty_city_is_422(
     assert response.status_code == 422
 
 
-def test_city_too_long_is_422(
-    client: TestClient, auth_headers: dict[str, str]
-) -> None:
+def test_city_too_long_is_422(client: TestClient, auth_headers: dict[str, str]) -> None:
     """A city longer than 80 characters is rejected."""
     response = client.put(
         "/profile",

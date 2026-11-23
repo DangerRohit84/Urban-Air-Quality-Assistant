@@ -29,9 +29,7 @@ def _register(client: TestClient, email: str) -> tuple[str, dict[str, str]]:
 
 def _login(client: TestClient, email: str) -> dict[str, str]:
     """Log in and return a bearer header for a fresh token."""
-    response = client.post(
-        "/auth/login", json={"email": email, "password": PASSWORD}
-    )
+    response = client.post("/auth/login", json={"email": email, "password": PASSWORD})
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['token']}"}
 

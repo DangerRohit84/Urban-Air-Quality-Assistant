@@ -30,15 +30,19 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "urban-air-quality-assistant:benchmark"
-PASSWORD = "BenchPass123"
+# Generated per run so no credential is ever hardcoded; the suffix keeps the
+# documented letter+digit password policy satisfied.
+PASSWORD = "BenchPass-" + uuid.uuid4().hex[:8] + "-1"
 GROUNDED_QUESTION = "Which indoor air purifier should I use?"
 REFUSAL_QUESTION = "What is the best pizza in Naples?"
 HEALTH_TIMEOUT = 30.0
@@ -134,14 +138,19 @@ class Api:
             request_headers["Content-Type"] = "application/json"
         if content_type:
             request_headers["Content-Type"] = content_type
-        request = urllib.request.Request(
-            self.base_url + path,
+        url = self.base_url + path
+        if urllib.parse.urlsplit(url).scheme not in {"http", "https"}:
+            raise ValueError(f"refusing non-HTTP benchmark URL: {url}")
+        request = urllib.request.Request(  # noqa: S310 - scheme checked above
+            url,
             data=data,
             headers=request_headers,
             method=method,
         )
         try:
-            with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
+            with urllib.request.urlopen(  # noqa: S310 - scheme checked above
+                request, timeout=REQUEST_TIMEOUT
+            ) as response:
                 return response.status, response.read()
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
@@ -306,7 +315,7 @@ def start_server(port: int, db_path: Path, log_path: Path) -> subprocess.Popen[b
         "--no-proxy-headers",
     ]
     log = log_path.open("wb")
-    return subprocess.Popen(
+    return subprocess.Popen(  # noqa: S603 - fixed argv, no untrusted input
         command,
         cwd=str(ROOT),
         env=env,
@@ -315,9 +324,7 @@ def start_server(port: int, db_path: Path, log_path: Path) -> subprocess.Popen[b
     )
 
 
-def wait_healthy(
-    api: Api, process: subprocess.Popen[bytes], log_path: Path
-) -> None:
+def wait_healthy(api: Api, process: subprocess.Popen[bytes], log_path: Path) -> None:
     """Wait until ``GET /health`` answers 200.
 
     Args:
@@ -477,7 +484,7 @@ def cold_import(runs: int = 3) -> dict[str, float]:
     values: list[float] = []
     for _ in range(runs):
         start = time.perf_counter_ns()
-        subprocess.run(
+        subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
             [sys.executable, "-c", "import backend.app.main"],
             cwd=str(ROOT),
             env=env,
@@ -501,16 +508,17 @@ def docker_evidence() -> dict[str, Any]:
     """
     if shutil.which("docker") is None:
         return {"available": False, "reason": "docker is not on PATH"}
-    info = subprocess.run(
-        ["docker", "info", "--format", "{{.ServerVersion}}"],
+    docker = shutil.which("docker") or "docker"
+    info = subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
+        [docker, "info", "--format", "{{.ServerVersion}}"],
         capture_output=True,
         text=True,
         check=False,
     )
     if info.returncode != 0:
         return {"available": False, "reason": "docker daemon unavailable"}
-    build = subprocess.run(
-        ["docker", "build", "-t", IMAGE, "."],
+    build = subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
+        [docker, "build", "-t", IMAGE, "."],
         cwd=str(ROOT),
         capture_output=True,
         text=True,
@@ -523,8 +531,8 @@ def docker_evidence() -> dict[str, Any]:
             "built": False,
             "reason": (build.stderr or build.stdout)[-1000:],
         }
-    inspect = subprocess.run(
-        ["docker", "image", "inspect", "-f", "{{.Size}}", IMAGE],
+    inspect = subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
+        [docker, "image", "inspect", "-f", "{{.Size}}", IMAGE],
         capture_output=True,
         text=True,
         check=False,
@@ -537,12 +545,15 @@ def docker_evidence() -> dict[str, Any]:
         "image_size_bytes": size_bytes,
         "image_size_mib": round(size_bytes / (1024 * 1024), 1),
     }
-    result.update(_docker_smoke())
+    result.update(_docker_smoke(docker))
     return result
 
 
-def _docker_smoke() -> dict[str, Any]:
+def _docker_smoke(docker: str) -> dict[str, Any]:
     """Run the image with ``--memory=512m`` and hit the API.
+
+    Args:
+        docker: The resolved Docker executable.
 
     Returns:
         The smoke verdict, or the failure detail.
@@ -550,7 +561,7 @@ def _docker_smoke() -> dict[str, Any]:
     name = "uaqa-bench-" + uuid.uuid4().hex[:8]
     port = free_port()
     command = [
-        "docker",
+        docker,
         "run",
         "-d",
         "--rm",
@@ -572,7 +583,9 @@ def _docker_smoke() -> dict[str, Any]:
         "RATE_LIMIT_PER_MIN=100000",
         IMAGE,
     ]
-    started = subprocess.run(command, capture_output=True, text=True, check=False)
+    started = subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
+        command, capture_output=True, text=True, check=False
+    )
     if started.returncode != 0:
         return {"smoke_512m": "failed", "smoke_detail": started.stderr[-500:]}
     api = Api(f"http://127.0.0.1:{port}")
@@ -581,8 +594,10 @@ def _docker_smoke() -> dict[str, Any]:
         status, registered = api.json(
             "POST",
             "/auth/register",
-            payload={"email": f"container-{uuid.uuid4().hex}@example.com",
-                     "password": PASSWORD},
+            payload={
+                "email": f"container-{uuid.uuid4().hex}@example.com",
+                "password": PASSWORD,
+            },
         )
         if status != 201:
             return {"smoke_512m": "failed", "smoke_detail": f"register {status}"}
@@ -599,8 +614,8 @@ def _docker_smoke() -> dict[str, Any]:
     except (OSError, RuntimeError, KeyError) as exc:
         return {"smoke_512m": "failed", "smoke_detail": str(exc)[:500]}
     finally:
-        subprocess.run(
-            ["docker", "rm", "-f", name],
+        subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
+            [docker, "rm", "-f", name],
             capture_output=True,
             text=True,
             check=False,
@@ -706,12 +721,16 @@ def print_report(report: dict[str, Any]) -> None:
             f"{stats['max_ms']:>8.2f}"
         )
     cold = report["cold_import"]
-    print(f"\nCold import: median {cold['median_ms']} ms "
-          f"(min {cold['min_ms']}, max {cold['max_ms']})")
+    print(
+        f"\nCold import: median {cold['median_ms']} ms "
+        f"(min {cold['min_ms']}, max {cold['max_ms']})"
+    )
     docker = report["docker"]
     if docker.get("built"):
-        print(f"Docker image: {docker['image_size_mib']} MiB | "
-              f"512m smoke: {docker.get('smoke_512m', 'not run')}")
+        print(
+            f"Docker image: {docker['image_size_mib']} MiB | "
+            f"512m smoke: {docker.get('smoke_512m', 'not run')}"
+        )
     else:
         print(f"Docker: skipped ({docker.get('reason', 'unavailable')})")
 
@@ -775,9 +794,7 @@ def main(argv: list[str] | None = None) -> int:
     print_report(report)
     if args.json is not None:
         args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(
-            json.dumps(report, indent=2) + "\n", encoding="utf-8"
-        )
+        args.json.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(f"\nReport written to {args.json}")
     if not skip_docker:
         failure = docker_failure(report)

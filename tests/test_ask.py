@@ -185,8 +185,7 @@ def test_document_disclaimer_marker_keeps_guidance(
             json={
                 "title": "Disclaimer",
                 "text": (
-                    "Use a HEPA purifier indoors. "
-                    "wqguidance Disclaimer: note this."
+                    "Use a HEPA purifier indoors. " "wqguidance Disclaimer: note this."
                 ),
             },
         ).status_code

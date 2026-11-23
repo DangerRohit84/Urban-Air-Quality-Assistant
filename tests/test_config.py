@@ -16,9 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_MODULE = ROOT / "backend" / "app" / "config.py"
 
 
-def _run_isolated_config(
-    tmp_path: Path, env_text: str, environ: dict[str, str]
-) -> str:
+def _run_isolated_config(tmp_path: Path, env_text: str, environ: dict[str, str]) -> str:
     """Import a copied config module next to a local ``.env`` file.
 
     Args:
@@ -80,7 +78,9 @@ def test_allowed_origins_drops_wildcard_and_malformed_entries(
     ]
 
 
-def test_rate_limit_parses_int_env_with_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rate_limit_parses_int_env_with_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """``RATE_LIMIT_PER_MIN`` parses as an int and defaults to 200."""
     monkeypatch.delenv("RATE_LIMIT_PER_MIN", raising=False)
     assert Settings().rate_limit_per_min == 200

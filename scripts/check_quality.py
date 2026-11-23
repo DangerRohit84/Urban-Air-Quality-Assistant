@@ -7,7 +7,7 @@ Usage::
 
 The script exits with code 0 only when every gate passes:
 
-1. ``ruff``    - no lint errors in ``backend/`` and ``tests/``.
+1. ``ruff``    - no lint or format errors anywhere in the repository.
 2. ``mypy``    - no type errors in ``backend/app``.
 3. ``pytest``  - the whole suite passes.
 4. ``coverage`` - the TOTAL percentage reaches the ``fail_under`` floor
@@ -22,6 +22,7 @@ needs no third-party TOML parser.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -33,7 +34,7 @@ BACKEND_APP = ROOT / "backend" / "app"
 
 # Mirrors the ``fail_under`` value in pyproject.toml; the test suite asserts
 # the two stay in sync.
-DEFAULT_COVERAGE_FLOOR = 76.0
+DEFAULT_COVERAGE_FLOOR = 89.0
 
 # The plan's quality bar: at least 200 collected tests.
 MINIMUM_TEST_COUNT = 200
@@ -76,7 +77,7 @@ def run(step: str, command: list[str]) -> tuple[bool, str]:
     """
     printable = " ".join(command)
     print(f"\n=== {step}: {printable} ===", flush=True)
-    completed = subprocess.run(
+    completed = subprocess.run(  # noqa: S603 - fixed argv, no untrusted input
         command,
         cwd=str(ROOT),
         capture_output=True,
@@ -100,13 +101,10 @@ def parse_total_coverage(output: str) -> float | None:
         The TOTAL percentage, or None when the report has no TOTAL row.
     """
     match = re.search(
-        r"^TOTAL\s+\d+\s+\d+\s+(\d+(?:\.\d+)?)%",
+        r"^TOTAL\s+.*?(\d+(?:\.\d+)?)%\s*$",
         output,
         re.MULTILINE,
     )
-    if match:
-        return float(match.group(1))
-    match = re.search(r"^TOTAL\s+.*?(\d+(?:\.\d+)?)%", output, re.MULTILINE)
     return float(match.group(1)) if match else None
 
 
@@ -147,23 +145,35 @@ def main() -> int:
     floor = read_coverage_floor()
     print(f"Quality gates: ruff, mypy, pytest, coverage >= {floor}%")
 
-    run("lint", [sys.executable, "-m", "ruff", "check", "backend", "tests"])
+    run("lint", [sys.executable, "-m", "ruff", "check", "."])
+    run("format", [sys.executable, "-m", "ruff", "format", "--check", "."])
     run("types", [sys.executable, "-m", "mypy", "backend/app"])
 
-    if _has_backend_modules():
-        command = [
-            sys.executable,
-            "-m",
-            "pytest",
-            "--cov=backend",
-            "--cov-report=term",
-            "-q",
-        ]
+    measurable = _has_backend_modules()
+    if measurable:
+        # Use ``coverage run`` rather than pytest-cov: pytest-cov writes
+        # parallel data files, and subprocesses started by tests can then
+        # combine statement-only shards with branch-aware ones.
+        coverage_file = Path(os.environ.get("COVERAGE_FILE", str(ROOT / ".coverage")))
+        coverage_file.unlink(missing_ok=True)
+        tests_passed, test_output = run(
+            "tests",
+            [
+                sys.executable,
+                "-m",
+                "coverage",
+                "run",
+                "--branch",
+                "--source=backend",
+                "-m",
+                "pytest",
+                "-q",
+            ],
+        )
     else:
-        command = [sys.executable, "-m", "pytest", "-q"]
-    _, coverage_output = run("tests", command)
+        tests_passed, test_output = run("tests", [sys.executable, "-m", "pytest", "-q"])
 
-    test_count = parse_test_count(coverage_output)
+    test_count = parse_test_count(test_output)
     count_ok = test_count is not None and test_count >= MINIMUM_TEST_COUNT
     _RESULTS.append(
         (
@@ -177,14 +187,18 @@ def main() -> int:
         )
     )
 
-    if _has_backend_modules():
-        total = parse_total_coverage(coverage_output)
+    if measurable and tests_passed:
+        _, report = run("coverage", [sys.executable, "-m", "coverage", "report"])
+        total = parse_total_coverage(report)
         coverage_ok = total is not None and total >= floor
         detail = (
             f"TOTAL {total:.1f}% >= {floor:.1f}%"
             if total is not None
             else "no TOTAL row"
         )
+    elif measurable:
+        coverage_ok = False
+        detail = "skipped (tests failed)"
     else:
         coverage_ok = True
         detail = "skipped (no backend modules)"

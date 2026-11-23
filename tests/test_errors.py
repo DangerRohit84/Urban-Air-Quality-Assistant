@@ -82,4 +82,4 @@ def test_error_bodies_never_leak_tracebacks() -> None:
         body = client.get(path).text.lower()
         assert "traceback" not in body
         assert "secret stack detail" not in body
-        assert "file \"" not in body
+        assert 'file "' not in body

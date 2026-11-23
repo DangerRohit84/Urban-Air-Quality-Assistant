@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 from pathlib import Path
+from typing import cast
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
@@ -52,7 +53,8 @@ class SQLiteBackend:
             The first row, or None.
         """
         with self._lock:
-            return self._conn.execute(sql, params).fetchone()
+            row = self._conn.execute(sql, params).fetchone()
+            return cast("sqlite3.Row | None", row)
 
     def all(self, sql: str, params: tuple[object, ...] = ()) -> list[sqlite3.Row]:
         """Return every matching row.

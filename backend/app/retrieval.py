@@ -109,8 +109,7 @@ def search(
         key=lambda index: (-scores[index], str(records[index]["id"])),
     )
     hits = [
-        {**records[index], "score": round(float(scores[index]), 6)}
-        for index in order
+        {**records[index], "score": round(float(scores[index]), 6)} for index in order
     ]
     hits = _relevant(hits, query)
     if not hits:

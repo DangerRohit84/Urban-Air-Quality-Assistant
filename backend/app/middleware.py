@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 
 from backend.app.config import settings
+from backend.app.errors import log_unhandled_error
 from backend.app.rate_limiter import client_key
+from backend.app.security_log import log_event
 
 RETRY_AFTER = "60"
 EXEMPT_PATHS = frozenset({"/health"})
@@ -18,9 +20,14 @@ _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
-    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
+    "Content-Security-Policy": (
+        "default-src 'self'; frame-ancestors 'none'; object-src 'none'; "
+        "base-uri 'self'; form-action 'self'"
+    ),
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
     "Cache-Control": "no-store",
 }
 
@@ -51,6 +58,7 @@ def rate_limit(request: Request) -> None:
     request.state.rate_limit_remaining = remaining
     request.state.rate_limit_reset = reset
     if not allowed:
+        log_event("rate_limit_exceeded", path=request.url.path)
         raise HTTPException(
             status_code=429,
             detail="rate limit exceeded",
@@ -127,7 +135,8 @@ async def security_headers(
     """
     try:
         response: Response = await call_next(request)
-    except Exception:  # noqa: BLE001 - the middleware must never leak crashes
+    except Exception as exc:  # noqa: BLE001 - the middleware must never leak crashes
+        log_unhandled_error(request, exc)
         response = JSONResponse(
             status_code=500,
             content={"detail": "Internal server error"},

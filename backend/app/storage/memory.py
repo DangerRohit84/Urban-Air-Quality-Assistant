@@ -105,9 +105,7 @@ class InMemoryRepo(MemoryRevocationsMixin):
     def list_documents(self, owner_id: str) -> list[Document]:
         """Return every document owned by ``owner_id``."""
         with self._lock:
-            return [
-                doc for doc in self._documents.values() if doc.owner_id == owner_id
-            ]
+            return [doc for doc in self._documents.values() if doc.owner_id == owner_id]
 
     def get_document(self, doc_id: str) -> Document | None:
         """Return the document with ``doc_id``, or None."""

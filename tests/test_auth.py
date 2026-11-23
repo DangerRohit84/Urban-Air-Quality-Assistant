@@ -113,9 +113,7 @@ def test_login_correct_returns_200(client: TestClient) -> None:
 def test_login_upgrades_legacy_password_hash(client: TestClient) -> None:
     """A successful login rehashes a pre-upgrade 120k record at 600k."""
     salt = b"\x02" * 16
-    digest = hashlib.pbkdf2_hmac(
-        "sha256", b"TestPass123", salt, LEGACY_ITERATIONS
-    )
+    digest = hashlib.pbkdf2_hmac("sha256", b"TestPass123", salt, LEGACY_ITERATIONS)
     legacy = f"{salt.hex()}${digest.hex()}"
     repo = get_repo()
     user = repo.create_user("legacy@example.com", legacy)
@@ -130,10 +128,13 @@ def test_login_upgrades_legacy_password_hash(client: TestClient) -> None:
     assert upgraded is not None
     assert upgraded.password_hash.startswith("pbkdf2_sha256$600000$")
     assert upgraded.password_hash != legacy
-    assert client.post(
-        "/auth/login",
-        json={"email": "legacy@example.com", "password": "TestPass123"},
-    ).status_code == 200
+    assert (
+        client.post(
+            "/auth/login",
+            json={"email": "legacy@example.com", "password": "TestPass123"},
+        ).status_code
+        == 200
+    )
 
 
 def test_login_wrong_password_is_generic_401(client: TestClient) -> None:

@@ -10,6 +10,7 @@ from backend.app.auth.claims import TokenClaims
 from backend.app.auth.tokens import verify_claims
 from backend.app.models import Profile, User
 from backend.app.profile import DEFAULT_PROFILE
+from backend.app.security_log import log_event
 from backend.app.storage.protocol import Repository
 from backend.app.storage.store import get_repo
 
@@ -30,11 +31,14 @@ def bearer_claims(request: Request) -> TokenClaims:
     """
     scheme, _, token = request.headers.get("authorization", "").partition(" ")
     if scheme.lower() != "bearer" or not token.strip():
+        log_event("auth_failure", path=request.url.path, reason="malformed_header")
         raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
     claims = verify_claims(token.strip())
     if claims is None:
+        log_event("auth_failure", path=request.url.path, reason="invalid_token")
         raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
     if claims.jti is not None and get_repo().is_token_revoked(claims.jti):
+        log_event("auth_failure", path=request.url.path, reason="revoked_token")
         raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
     return claims
 
@@ -81,6 +85,7 @@ def current_user(request: Request) -> User:
     user_id = bearer_token(request)
     user = get_repo().get_user_by_id(user_id)
     if user is None:
+        log_event("auth_failure", path=request.url.path, reason="unknown_user")
         raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
     return user
 

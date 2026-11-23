@@ -4,72 +4,47 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 
 from backend.app import access
 from backend.app.auth.dependencies import require_user_id
-from backend.app.chunking import chunk_text
-from backend.app.config import settings
-from backend.app.models import Document
 from backend.app.retrieval import invalidate_cache
-from backend.app.schemas.documents import DocumentIn, DocumentResponse
-from backend.app.security import MAX_DOCUMENT_CHARS, sanitize_text
+from backend.app.routes.common import AUTH_RESPONSES, BODY_LIMIT_RESPONSE
+from backend.app.routes.document_store import store_document
+from backend.app.schemas.documents import (
+    DocumentIn,
+    DocumentResponse,
+    DocumentSummary,
+)
+from backend.app.schemas.errors import ErrorResponse
+from backend.app.security import sanitize_text
 from backend.app.storage.store import get_repo
 
 router = APIRouter(tags=["documents"])
 
-
-def store_document(
-    user_id: str, title: str, text: str, kind: str, source: str
-) -> DocumentResponse:
-    """Persist a document and invalidate the owner's retrieval cache.
-
-    Args:
-        user_id: The verified owner id.
-        title: The document title.
-        text: The document text.
-        kind: The document kind.
-        source: The document source.
-
-    Returns:
-        The stored document response.
-
-    Raises:
-        HTTPException: 409 when the document limit is reached, 422 when the
-            text is empty after sanitization or exceeds ``MAX_DOCUMENT_CHARS``.
-    """
-    # Keep one character past the cap so the explicit 422 wins over silent
-    # truncation, and sanitize PDF text on the same path as manual text.
-    text = sanitize_text(text, MAX_DOCUMENT_CHARS + 1)
-    if not text:
-        raise HTTPException(
-            status_code=422, detail="document text must not be empty"
-        )
-    if len(text) > MAX_DOCUMENT_CHARS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"document text exceeds {MAX_DOCUMENT_CHARS} characters",
-        )
-    repo = get_repo()
-    if repo.count_documents(user_id) >= settings.max_documents:
-        raise HTTPException(status_code=409, detail="document limit reached")
-    saved = repo.create_document(
-        Document(
-            id="",
-            owner_id=user_id,
-            kind=kind,
-            title=title,
-            text=text,
-            chunks=chunk_text(text),
-            source=source,
-            created_at="",
-        )
-    )
-    invalidate_cache(user_id)
-    return DocumentResponse(**saved.to_dict())
+CREATE_DOCUMENT_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    **BODY_LIMIT_RESPONSE,
+    409: {
+        "model": ErrorResponse,
+        "description": "Document limit reached for this owner.",
+    },
+}
+DELETE_DOCUMENT_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    404: {
+        "model": ErrorResponse,
+        "description": "Document missing or owned by another account.",
+    },
+}
 
 
-@router.post("/documents", response_model=DocumentResponse, status_code=201)
+@router.post(
+    "/documents",
+    response_model=DocumentResponse,
+    status_code=201,
+    responses=CREATE_DOCUMENT_RESPONSES,
+)
 def create_document(
     payload: DocumentIn,
     user_id: Annotated[str, Depends(require_user_id)],
@@ -92,25 +67,38 @@ def create_document(
     )
 
 
-@router.get("/documents", response_model=list[DocumentResponse])
+@router.get(
+    "/documents",
+    response_model=list[DocumentSummary],
+    responses=AUTH_RESPONSES,
+)
 def list_documents(
     user_id: Annotated[str, Depends(require_user_id)],
-) -> list[DocumentResponse]:
-    """List the caller's documents.
+) -> list[DocumentSummary]:
+    """List the caller's documents without their full text.
 
     Args:
         user_id: The verified owner id.
 
     Returns:
-        The owner's documents.
+        A compact summary for each of the owner's documents.
     """
     return [
-        DocumentResponse(**doc.to_dict())
+        DocumentSummary(
+            id=doc.id,
+            kind=doc.kind,
+            title=doc.title,
+            created_at=doc.created_at,
+        )
         for doc in get_repo().list_documents(user_id)
     ]
 
 
-@router.delete("/documents/{doc_id}", status_code=204)
+@router.delete(
+    "/documents/{doc_id}",
+    status_code=204,
+    responses=DELETE_DOCUMENT_RESPONSES,
+)
 def delete_document(
     doc_id: str,
     user_id: Annotated[str, Depends(require_user_id)],

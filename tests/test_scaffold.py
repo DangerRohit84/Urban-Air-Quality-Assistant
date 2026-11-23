@@ -29,7 +29,7 @@ def test_pyproject_declares_coverage_floor_and_strict_warnings() -> None:
     ini_options = data["tool"]["pytest"]["ini_options"]
     coverage_report = data["tool"]["coverage"]["report"]
 
-    assert coverage_report["fail_under"] == 76
+    assert coverage_report["fail_under"] == 89
     assert "error" in ini_options["filterwarnings"]
 
 
@@ -72,4 +72,4 @@ def test_check_quality_runner_exists_and_reads_floor() -> None:
     assert CHECK_QUALITY.exists()
     module = _load_check_quality()
 
-    assert module.read_coverage_floor() == 76.0  # type: ignore[attr-defined]
+    assert module.read_coverage_floor() == 89.0  # type: ignore[attr-defined]

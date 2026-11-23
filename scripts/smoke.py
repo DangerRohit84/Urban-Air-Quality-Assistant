@@ -16,6 +16,7 @@ import json
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 TIMEOUT_SECONDS = 15.0
@@ -56,6 +57,8 @@ def _request(
         The status code and the decoded body (or raw text).
     """
     url = base_url.rstrip("/") + path
+    if urllib.parse.urlsplit(url).scheme not in {"http", "https"}:
+        raise ValueError(f"refusing non-HTTP smoke URL: {url}")
     data = None
     headers: dict[str, str] = {}
     if body is not None:
@@ -63,11 +66,13 @@ def _request(
         headers["Content-Type"] = "application/json"
     if token:
         headers["Authorization"] = "Bearer " + token
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310 - scheme checked above
         url, data=data, headers=headers, method=method
     )
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(  # noqa: S310 - scheme checked above
+            request, timeout=TIMEOUT_SECONDS
+        ) as response:
             raw = response.read().decode("utf-8")
             status = response.status
     except urllib.error.HTTPError as exc:
@@ -160,14 +165,10 @@ def smoke(base_url: str) -> int:
     status, _ = _request(base_url, "GET", "/profile", token=token)
     checker.check("GET /profile before PUT is 404", status == 404, f"got {status}")
 
-    status, body = _request(
-        base_url, "PUT", "/profile", token=token, body=PROFILE
-    )
+    status, body = _request(base_url, "PUT", "/profile", token=token, body=PROFILE)
     checker.check("PUT /profile is 200", status == 200, f"got {status}")
 
-    status, _ = _request(
-        base_url, "POST", "/air/context", token=token, body=CONTEXT
-    )
+    status, _ = _request(base_url, "POST", "/air/context", token=token, body=CONTEXT)
     checker.check("POST /air/context is 200", status == 200, f"got {status}")
 
     status, body = _request(base_url, "GET", "/air?q=Delhi", token=token)
@@ -210,14 +211,10 @@ def smoke(base_url: str) -> int:
     if isinstance(body, list):
         checker.check("GET /documents lists the note", len(body) == 1)
 
-    status, _ = _request(
-        base_url, "DELETE", f"/documents/{doc_id}", token=token
-    )
+    status, _ = _request(base_url, "DELETE", f"/documents/{doc_id}", token=token)
     checker.check("DELETE /documents/{id} is 204", status == 204, f"got {status}")
 
-    status, body = _request(
-        base_url, "GET", "/export?format=json", token=token
-    )
+    status, body = _request(base_url, "GET", "/export?format=json", token=token)
     checker.check("GET /export?format=json is 200", status == 200, f"got {status}")
     if isinstance(body, dict):
         checker.check("export has routines", bool(body.get("routines")))
@@ -229,22 +226,14 @@ def smoke(base_url: str) -> int:
         f"got {status}",
     )
 
-    other_status, other_body = _register(
-        base_url, f"smoke-other-{suffix}@example.com"
-    )
-    other_token = (
-        other_body.get("token") if isinstance(other_body, dict) else None
-    )
-    checker.check(
-        "second user registers", other_status == 201 and bool(other_token)
-    )
+    other_status, other_body = _register(base_url, f"smoke-other-{suffix}@example.com")
+    other_token = other_body.get("token") if isinstance(other_body, dict) else None
+    checker.check("second user registers", other_status == 201 and bool(other_token))
     if doc_id and other_token:
         status, _ = _request(
             base_url, "DELETE", f"/documents/{doc_id}", token=other_token
         )
-        checker.check(
-            "cross-user delete is 404", status == 404, f"got {status}"
-        )
+        checker.check("cross-user delete is 404", status == 404, f"got {status}")
 
     print(f"\n{checker.checks - checker.failures}/{checker.checks} checks passed")
     if checker.failures:

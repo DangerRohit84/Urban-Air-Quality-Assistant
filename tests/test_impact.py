@@ -173,9 +173,7 @@ def test_impact_for_recommendation_uses_keys() -> None:
 def test_context_scales_exposure_reduction() -> None:
     """Poor air magnifies the exposure benefit of a cleaner choice."""
     plain = compute_impact(_profile(), "commute.bus", "commute.car")
-    poor = compute_impact(
-        _profile(), "commute.bus", "commute.car", _context("Poor")
-    )
+    poor = compute_impact(_profile(), "commute.bus", "commute.car", _context("Poor"))
 
     assert poor.exposure_reduction_pct == plain.exposure_reduction_pct * 1.25
     assert poor.co2e_kg_week == plain.co2e_kg_week

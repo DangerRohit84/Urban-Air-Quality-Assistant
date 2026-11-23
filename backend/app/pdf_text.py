@@ -79,9 +79,7 @@ def extract_pdf_text(data: bytes) -> str:
     """
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
-    process = context.Process(
-        target=_extract_worker, args=(data, sender), daemon=True
-    )
+    process = context.Process(target=_extract_worker, args=(data, sender), daemon=True)
     deadline = time.monotonic() + EXTRACTION_TIMEOUT_SECONDS
     try:
         process.start()

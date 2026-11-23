@@ -11,8 +11,11 @@ from starlette.datastructures import UploadFile
 from backend.app.auth.dependencies import require_user_id
 from backend.app.config import settings
 from backend.app.pdf_text import PdfTooComplexError, extract_pdf_text
-from backend.app.routes.documents import store_document
+from backend.app.routes.common import AUTH_RESPONSES, INTERNAL_ERROR
+from backend.app.routes.document_store import store_document
+from backend.app.routes.upload_events import log_rejected, log_store_rejected
 from backend.app.schemas.documents import DocumentResponse
+from backend.app.schemas.errors import ErrorResponse
 from backend.app.security import sanitize_filename
 from backend.app.upload_guard import validate_pre_parse
 from backend.app.upload_slot import BUSY_DETAIL, RETRY_AFTER_SECONDS, UPLOAD_SLOT
@@ -32,11 +35,34 @@ UPLOAD_REQUEST_BODY: dict[str, Any] = {
     },
 }
 
+UPLOAD_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **AUTH_RESPONSES,
+    400: {
+        "model": ErrorResponse,
+        "description": "Missing file field, wrong type or unparseable PDF.",
+    },
+    409: {"model": ErrorResponse, "description": "Document limit reached."},
+    413: {
+        "model": ErrorResponse,
+        "description": "Upload exceeds the configured size limit.",
+    },
+    422: {
+        "model": ErrorResponse,
+        "description": "PDF too complex or extracted text invalid.",
+    },
+    503: {
+        "model": ErrorResponse,
+        "description": "Another upload is being parsed; retry after a moment.",
+    },
+    **INTERNAL_ERROR,
+}
+
 
 @router.post(
     "/documents/upload",
     response_model=DocumentResponse,
     status_code=201,
+    responses=UPLOAD_RESPONSES,
     openapi_extra={"requestBody": UPLOAD_REQUEST_BODY},
 )
 async def upload_document(
@@ -64,6 +90,7 @@ async def upload_document(
             being parsed.
     """
     if UPLOAD_SLOT.locked():
+        log_rejected(request.url.path, "busy")
         raise HTTPException(
             status_code=503,
             detail=BUSY_DETAIL,
@@ -77,31 +104,40 @@ async def upload_document(
         try:
             upload = form.get("file")
             if not isinstance(upload, UploadFile):
+                log_rejected(request.url.path, "missing_file")
                 raise HTTPException(status_code=400, detail="file field is required")
             raw = await upload.read(settings.max_upload_bytes + 1)
             if len(raw) > settings.max_upload_bytes:
+                log_rejected(request.url.path, "too_large")
                 raise HTTPException(status_code=413, detail="file too large")
             try:
                 validate_pre_parse(
                     upload.filename or "", upload.content_type or "", len(raw), raw
                 )
             except ValueError as exc:
+                log_rejected(request.url.path, "pre_parse_failed")
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
             try:
                 text = await asyncio.to_thread(extract_pdf_text, raw)
             except PdfTooComplexError as exc:
+                log_rejected(request.url.path, "pdf_too_complex")
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
             except Exception as exc:  # noqa: BLE001 - malformed PDFs are client errors
+                log_rejected(request.url.path, "malformed_pdf")
                 raise HTTPException(
                     status_code=400, detail="could not parse PDF"
                 ) from exc
-            return store_document(
-                user_id,
-                sanitize_filename(upload.filename or "upload.pdf"),
-                text,
-                "upload",
-                "upload",
-            )
+            try:
+                return store_document(
+                    user_id,
+                    sanitize_filename(upload.filename or "upload.pdf"),
+                    text,
+                    "upload",
+                    "upload",
+                )
+            except HTTPException as exc:
+                log_store_rejected(request.url.path, exc)
+                raise
         finally:
             # FastAPI's ``File()`` path closes the parsed form for us; a
             # manual ``request.form()`` must close it or the spooled upload

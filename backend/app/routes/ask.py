@@ -11,13 +11,19 @@ from backend.app.llm.factory import build_provider
 from backend.app.plans import PROFILE_NOTE
 from backend.app.prompting import OUT_OF_DOMAIN, build_prompt, build_sources
 from backend.app.retrieval import search
+from backend.app.routes.common import AUTH_RESPONSES, BODY_LIMIT_RESPONSE
 from backend.app.schemas.ask import AskIn, AskResponse
 from backend.app.storage.store import get_repo
 
 router = APIRouter(tags=["ask"])
 
+ASK_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    **BODY_LIMIT_RESPONSE,
+}
 
-@router.post("/ask", response_model=AskResponse)
+
+@router.post("/ask", response_model=AskResponse, responses=ASK_RESPONSES)
 def ask(
     payload: AskIn,
     user_id: Annotated[str, Depends(require_user_id)],
@@ -51,6 +57,4 @@ def ask(
     if not profile.city:
         answer = f"{PROFILE_NOTE} {answer}"
     citations = [str(hit["id"]) for hit in hits[:3]]
-    return AskResponse(
-        answer=answer, citations=citations, mode=mode, grounded=True
-    )
+    return AskResponse(answer=answer, citations=citations, mode=mode, grounded=True)

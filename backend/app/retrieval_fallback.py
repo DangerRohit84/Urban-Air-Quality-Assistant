@@ -121,9 +121,7 @@ def _coverage(query: str, document: dict) -> float:
     return len(query_tokens & text_tokens) / len(query_tokens)
 
 
-def _rank_by_token_overlap(
-    corpus: list[dict], query: str, top_k: int
-) -> list[dict]:
+def _rank_by_token_overlap(corpus: list[dict], query: str, top_k: int) -> list[dict]:
     """Rank documents by token overlap with ``query``.
 
     Args:
@@ -143,6 +141,4 @@ def _rank_by_token_overlap(
         if coverage:
             scored.append((coverage, str(document.get("id", "")), document))
     scored.sort(key=lambda item: (-item[0], item[1]))
-    return [
-        {**document, "score": score} for score, _, document in scored[:top_k]
-    ]
+    return [{**document, "score": score} for score, _, document in scored[:top_k]]

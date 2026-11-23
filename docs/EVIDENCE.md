@@ -44,7 +44,7 @@ The journey spec drives the real UI through:
 6. Out-of-domain question `Who won the 2018 world cup?` refused with the
    corpus-boundary message and no citations.
 7. PDF upload and document-library listing.
-8. Sign out, followed by 401 responses from `/auth/me` and `/plans`, a
+8. Sign out, followed by 401 responses from `/auth/me` and `/ask`, a
    logged-out reload, and a successful sign-in with the same credentials.
 
 ## Accessibility audit
@@ -70,12 +70,15 @@ violations, so no accessibility remediation was required after the audit.
 | `docs/screenshots/home.png` | 1280x900 | Signed-out landing page |
 | `docs/screenshots/register.png` | 868x477 | Register and sign-in forms |
 | `docs/screenshots/dashboard-aqi.png` | 1280x900 | Air quality panel with Poor offline AQI and plan routines |
+| `docs/screenshots/Profile.png` | 1832x1033 | Profile form with city, household and exposure fields |
 | `docs/screenshots/grounded-answer.png` | 868x658 | Grounded answer with citation |
 | `docs/screenshots/documents.png` | 868x468 | Upload form and document list |
 | `docs/screenshots/mobile-dashboard.png` | 375x812 | Mobile dashboard |
 
-Normal `npm test` runs only assert that the six PNGs exist and are non-empty;
-they never rewrite the tracked files. To regenerate the evidence images, run
+Normal `npm test` runs only assert that the six Playwright-captured PNGs exist
+and are non-empty; they never rewrite the tracked files. `Profile.png` was
+captured manually and is referenced here as additional UI evidence. To
+regenerate the Playwright images, run
 `UPDATE_SCREENSHOTS=1 npm test -- screenshots.spec.ts` (PowerShell:
 `$env:UPDATE_SCREENSHOTS = "1"; npm test -- screenshots.spec.ts`) and commit
 the resulting stable output.
@@ -83,5 +86,7 @@ the resulting stable output.
 ![Signed-out home page](screenshots/home.png)
 
 ![Air quality panel with offline AQI and plan routines](screenshots/dashboard-aqi.png)
+
+![Profile form with household details](screenshots/Profile.png)
 
 ![Grounded answer with a seed citation](screenshots/grounded-answer.png)

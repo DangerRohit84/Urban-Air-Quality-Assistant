@@ -123,9 +123,7 @@ def test_list_is_owner_scoped(client: TestClient) -> None:
     assert [doc["title"] for doc in theirs] == ["Theirs"]
 
 
-def test_delete_own_document(
-    client: TestClient, auth_headers: dict[str, str]
-) -> None:
+def test_delete_own_document(client: TestClient, auth_headers: dict[str, str]) -> None:
     """Deleting an owned document removes it."""
     doc_id = client.post(
         "/documents",
@@ -136,7 +134,10 @@ def test_delete_own_document(
     deleted = client.delete(f"/documents/{doc_id}", headers=auth_headers)
 
     assert deleted.status_code == 204
-    assert all(doc["id"] != doc_id for doc in client.get("/documents", headers=auth_headers).json())
+    assert all(
+        doc["id"] != doc_id
+        for doc in client.get("/documents", headers=auth_headers).json()
+    )
 
 
 def test_delete_foreign_document_is_404(client: TestClient) -> None:
@@ -507,7 +508,7 @@ def test_boundary_length_document_preserves_markup_characters(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
     """A maximal document keeps ``&``, quotes and angle brackets intact."""
-    text = ("R&D M&M's <keep> \"quoted\" & more. " * 1600)[:MAX_DOCUMENT_CHARS]
+    text = ('R&D M&M\'s <keep> "quoted" & more. ' * 1600)[:MAX_DOCUMENT_CHARS]
     if text.endswith(" "):
         text = text[:-1] + "."
 

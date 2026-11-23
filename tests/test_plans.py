@@ -27,10 +27,7 @@ CONTEXT = {"city": "Delhi", "band": "Poor", "season": "winter"}
 def _store(client: TestClient, headers: dict[str, str]) -> None:
     """PUT the test profile and its Poor-band context."""
     assert client.put("/profile", headers=headers, json=PROFILE).status_code == 200
-    assert (
-        client.post("/air/context", headers=headers, json=CONTEXT).status_code
-        == 200
-    )
+    assert client.post("/air/context", headers=headers, json=CONTEXT).status_code == 200
 
 
 def test_plans_sections_mentions_and_ranking(
@@ -48,8 +45,7 @@ def test_plans_sections_mentions_and_ranking(
     assert len(body["alternatives"]) >= 3
 
     assert any(
-        "car" in (item["title"] + item["detail"]).lower()
-        for item in body["routines"]
+        "car" in (item["title"] + item["detail"]).lower() for item in body["routines"]
     )
     assert any(
         "children" in (item["title"] + item["detail"]).lower()
@@ -79,9 +75,7 @@ def test_build_plans_default_profile_has_note() -> None:
     assert isinstance(payload.alternatives, list)
 
 
-def test_unknown_area_is_422(
-    client: TestClient, auth_headers: dict[str, str]
-) -> None:
+def test_unknown_area_is_422(client: TestClient, auth_headers: dict[str, str]) -> None:
     """An unknown area filter is rejected."""
     response = client.get("/plans?area=rocket", headers=auth_headers)
 
@@ -122,11 +116,14 @@ def test_plans_are_owner_scoped(client: TestClient) -> None:
     owner_headers = {"Authorization": f"Bearer {owner['token']}"}
     other_headers = {"Authorization": f"Bearer {other['token']}"}
     _store(client, owner_headers)
-    assert client.put(
-        "/profile",
-        headers=other_headers,
-        json={**PROFILE, "commute_mode": "walk", "city": "Mumbai"},
-    ).status_code == 200
+    assert (
+        client.put(
+            "/profile",
+            headers=other_headers,
+            json={**PROFILE, "commute_mode": "walk", "city": "Mumbai"},
+        ).status_code
+        == 200
+    )
 
     owner_body = client.get("/plans", headers=owner_headers).json()
     other_body = client.get("/plans", headers=other_headers).json()

@@ -7,6 +7,8 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from backend.app.security_log import log_event
+
 JSON_BODY_LIMIT = 1024 * 1024
 UPLOAD_HEADROOM = 1024 * 1024
 UPLOAD_PATH = "/documents/upload"
@@ -32,6 +34,16 @@ async def _send_too_large(send: Send) -> None:
         }
     )
     await send({"type": "http.response.body", "body": body})
+
+
+def _log_upload_rejection(scope: Scope) -> None:
+    """Log an oversize middleware rejection for the upload route.
+
+    Args:
+        scope: The ASGI connection scope.
+    """
+    if scope.get("path") == UPLOAD_PATH:
+        log_event("upload_rejected", path=UPLOAD_PATH, reason="too_large")
 
 
 def _content_length(scope: Scope) -> int | None:
@@ -78,12 +90,11 @@ class BodyLimitMiddleware:
             return
 
         limit = (
-            self.upload_limit
-            if scope.get("path") == UPLOAD_PATH
-            else self.json_limit
+            self.upload_limit if scope.get("path") == UPLOAD_PATH else self.json_limit
         )
         declared = _content_length(scope)
         if declared is not None and declared > limit:
+            _log_upload_rejection(scope)
             await _send_too_large(send)
             return
 
@@ -112,4 +123,5 @@ class BodyLimitMiddleware:
         except HTTPException as exc:
             if exc.status_code != 413 or response_started:
                 raise
+            _log_upload_rejection(scope)
             await _send_too_large(send)

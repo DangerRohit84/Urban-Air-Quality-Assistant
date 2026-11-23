@@ -48,9 +48,7 @@ def test_post_json_encodes_and_decodes(monkeypatch: object) -> None:
     opener = _Opener(_Response(json.dumps({"ok": True}).encode("utf-8")))
     monkeypatch.setattr(http_json, "_opener", lambda: opener)
 
-    result = http_json.post_json(
-        "https://example.test/x", {"a": 1}, {"X-Test": "1"}
-    )
+    result = http_json.post_json("https://example.test/x", {"a": 1}, {"X-Test": "1"})
 
     assert result == {"ok": True}
     request = opener.captured["request"]
@@ -77,8 +75,9 @@ def test_post_json_rejects_unsupported_schemes() -> None:
 
 def test_post_json_does_not_follow_redirects() -> None:
     """A 302 never reaches the redirect target with the bearer token."""
-    with serve(302, b"", location="/capture") as server, pytest.raises(
-        (OSError, ValueError)
+    with (
+        serve(302, b"", location="/capture") as server,
+        pytest.raises((OSError, ValueError)),
     ):
         http_json.post_json(
             f"{server.base_url}/chat/completions",

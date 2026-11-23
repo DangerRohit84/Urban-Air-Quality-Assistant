@@ -41,9 +41,7 @@ class GeminiProvider:
 
     name = "gemini"
 
-    def __init__(
-        self, api_key: str | None = None, model: str | None = None
-    ) -> None:
+    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         """Store the API key and model.
 
         Args:

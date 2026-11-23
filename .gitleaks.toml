@@ -1,0 +1,22 @@
+title = "Urban Air Quality Assistant gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Example values, fixtures and generated reports"
+paths = [
+  '''\.env\.example$''',
+  '''docs/benchmark-results\.json$''',
+  '''docs/BENCHMARKS\.md$''',
+]
+regexes = [
+  '''AUTH_SECRET=\s*$''',
+  '''DemoPass123!''',
+  '''TestPass123''',
+  '''BadPass123''',
+  '''test-secret''',
+  '''e2e-secret-not-for-production''',
+  '''e2e-offline-key''',
+  '''super-secret-bearer-token''',
+]

@@ -9,13 +9,28 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.app import access
 from backend.app.auth.dependencies import require_user_id
 from backend.app.profile import normalize_profile
+from backend.app.routes.common import AUTH_RESPONSES, BODY_LIMIT_RESPONSE
+from backend.app.schemas.errors import ErrorResponse
 from backend.app.schemas.profile import ProfileResponse, ProfileUpdate
 from backend.app.storage.store import get_repo
 
 router = APIRouter(tags=["profile"])
 
+PROFILE_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    404: {
+        "model": ErrorResponse,
+        "description": "No profile saved for the caller.",
+    },
+}
 
-@router.get("/profile", response_model=ProfileResponse)
+PROFILE_UPDATE_RESPONSES: dict[int | str, dict[str, object]] = {
+    **AUTH_RESPONSES,
+    **BODY_LIMIT_RESPONSE,
+}
+
+
+@router.get("/profile", response_model=ProfileResponse, responses=PROFILE_RESPONSES)
 def get_profile(
     user_id: Annotated[str, Depends(require_user_id)],
 ) -> ProfileResponse:
@@ -36,7 +51,9 @@ def get_profile(
     return ProfileResponse(**profile.to_dict())
 
 
-@router.put("/profile", response_model=ProfileResponse)
+@router.put(
+    "/profile", response_model=ProfileResponse, responses=PROFILE_UPDATE_RESPONSES
+)
 def update_profile(
     payload: ProfileUpdate,
     user_id: Annotated[str, Depends(require_user_id)],
@@ -54,9 +71,7 @@ def update_profile(
         HTTPException: 422 when a field is out of range.
     """
     try:
-        profile = normalize_profile(
-            {**payload.model_dump(), "user_id": user_id}
-        )
+        profile = normalize_profile({**payload.model_dump(), "user_id": user_id})
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     saved = get_repo().save_profile(profile)
